@@ -1,0 +1,85 @@
+/* Fuente y fondo general */
+body {
+  background: linear-gradient(135deg, #e3f2fd, #f5f7fa);
+  font-family: 'Poppins', sans-serif;
+  color: #333;
+}
+
+/* Contenedor principal */
+.card {
+  border: none;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Encabezado */
+.card-title {
+  text-align: center;
+  font-weight: 600;
+  color: #0d6efd;
+  letter-spacing: 1px;
+}
+
+/* Campos del formulario */
+.form-label {
+  font-weight: 500;
+  color: #0d47a1;
+}
+
+.form-control {
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
+}
+
+/* Botón principal */
+.btn-primary {
+  background-color: #0d6efd;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #0b5ed7;
+  transform: scale(1.02);
+}
+
+/* Texto de abajo */
+a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Alertas */
+.alert {
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card {
+    padding: 10px;
+  }
+}
