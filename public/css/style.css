@@ -1,9 +1,39 @@
-/* Fuente y fondo general */
 body {
-  background: linear-gradient(135deg, #e3f2fd, #f5f7fa);
+  background: linear-gradient(to right, #e9eff5, #f8fafc);
   font-family: 'Poppins', sans-serif;
-  color: #333;
 }
+
+.card {
+  background-color: #ffffff;
+  border-radius: 15px;
+  border: none;
+}
+
+.form-control {
+  border-radius: 10px;
+  border: 1px solid #d0d7de;
+}
+
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary {
+  background-color: #0d6efd;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: #0b5ed7;
+}
+
+.form-check-label {
+  color: #0d47a1;
+  font-size: 0.9rem;
+}
+
 
 /* Contenedor principal */
 .card {
