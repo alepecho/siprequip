@@ -1,16 +1,16 @@
-<?php
+<<?php
 session_start();
 require_once __DIR__ . '/../includes/functions.php';
 
-if (!isset($_SESSION['user_id'])) {
+/*if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
-}
+}*/
 
 $success = false;
 $errors = [];
 
-/*if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $departamento = trim($_POST['departamento']);
     $equipo = trim($_POST['equipo']);
     $cantidad = intval($_POST['cantidad']);
@@ -28,7 +28,7 @@ $errors = [];
             $errors[] = "Error al registrar la solicitud.";
         }
     }
-}*/
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -45,7 +45,7 @@ $errors = [];
       <a class="navbar-brand fw-bold" href="#">Inventario GSI</a>
       <div class="d-flex">
         <span class="navbar-text me-3 text-white">
-          Bienvenido, <?= htmlspecialchars($_SESSION['user_name']); ?>
+          <center>Bienvenido</center>
         </span>
         <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
       </div>
