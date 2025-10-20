@@ -1,5 +1,4 @@
 <?php
-// public/register.php
 session_start();
 require_once __DIR__ . '/../includes/functions.php';
 
@@ -26,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pwHash = password_hash($password, PASSWORD_DEFAULT);
             $insertId = createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correocaja, $servicio, $pwHash);
             if ($insertId) {
-                $success = true;
                 $_SESSION['user_id'] = $insertId;
                 $_SESSION['user_name'] = $nombre;
                 header("Location: dashboard.php");
@@ -45,72 +43,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Registro - Inventario</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/estilo.css">
 </head>
-<body class="bg-light">
-  <div class="container py-5">
-    <div class="row justify-content-center">
-      <div class="col-md-7">
-        <div class="card shadow-lg border-0 rounded-4">
-          <div class="card-body p-4">
-            <h3 class="card-title text-center text-primary mb-4 fw-bold">Crear cuenta</h3>
+<body>
+  <div class="registro-wrapper d-flex align-items-center justify-content-center min-vh-100">
+    <div class="registro-card d-flex flex-column flex-md-row shadow-lg rounded-4 overflow-hidden animate__animated animate__fadeIn">
 
-            <?php if ($errors): ?>
-              <div class="alert alert-danger">
-                <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
-              </div>
-            <?php endif; ?>
-
-            <form method="post">
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Cédula</label>
-                  <input class="form-control" name="cedula" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Usuario caja</label>
-                  <input class="form-control" name="usuario_caja" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Nombre</label>
-                  <input class="form-control" name="nombre" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Apellido 1</label>
-                  <input class="form-control" name="apellido1" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Apellido 2</label>
-                  <input class="form-control" name="apellido2" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Correo caja</label>
-                  <input class="form-control" name="correocaja" type="email" placeholder="ejemplo@correo.com" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Servicio o Depto</label>
-                  <input class="form-control" name="servicio" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-semibold">Contraseña</label>
-                  <input class="form-control" name="password" type="password" placeholder="********" minlength="6" required>
-                </div>
-              </div>
-
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="mostrarPassword">
-                <label class="form-check-label" for="mostrarPassword">Mostrar contraseña</label>
-              </div>
-
-              <button class="btn btn-primary w-100 rounded-3">Registrarse</button>
-            </form>
-
-            <p class="mt-4 text-center small">
-              ¿Ya tienes cuenta? <a href="login.php" class="text-decoration-none text-primary fw-semibold">Inicia sesión</a>
-            </p>
-          </div>
-        </div>
+      <!-- Panel Izquierdo (Azul) -->
+      <div class="registro-left text-white d-flex flex-column justify-content-center align-items-center p-5">
+        <h2 class="fw-bold mb-3">¡Bienvenido!</h2>
+        <p class="text-center">Crea tu cuenta para gestionar el inventario y los servicios de manera más eficiente.</p>
+        <img src="img/Logo-CCSS-CostaRica-negro.png" alt="" class="mt-4" width="120">
       </div>
+
+      <!-- Panel Derecho (Formulario) -->
+      <div class="registro-right bg-light p-5 flex-fill">
+        <h3 class="text-center text-primary fw-bold mb-4">Crear cuenta</h3>
+
+        <?php if ($errors): ?>
+          <div class="alert alert-danger">
+            <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
+          </div>
+        <?php endif; ?>
+
+        <form method="post" class="registro-form">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Cédula</label>
+              <input class="form-control" name="cedula" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Usuario caja</label>
+              <input class="form-control" name="usuario_caja" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Nombre</label>
+              <input class="form-control" name="nombre" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Apellido 1</label>
+              <input class="form-control" name="apellido1" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Apellido 2</label>
+              <input class="form-control" name="apellido2" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Correo caja</label>
+              <input class="form-control" name="correocaja" type="email" placeholder="ejemplo@correo.com" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Servicio o Depto</label>
+              <input class="form-control" name="servicio" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Contraseña</label>
+              <input class="form-control" name="password" type="password" placeholder="********" minlength="6" required>
+            </div>
+          </div>
+
+          <div class="form-check my-3">
+            <input class="form-check-input" type="checkbox" id="mostrarPassword">
+            <label class="form-check-label" for="mostrarPassword">Mostrar contraseña</label>
+          </div>
+
+          <button class="btn btn-primary w-100 py-2 fw-semibold rounded-3">Registrarse</button>
+        </form>
+
+        <p class="mt-4 text-center small">
+          ¿Ya tienes cuenta? <a href="login.php" class="text-decoration-none text-primary fw-semibold">Inicia sesión</a>
+        </p>
+      </div>
+
     </div>
   </div>
 
@@ -118,7 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 document.addEventListener("DOMContentLoaded", () => {
   const checkbox = document.getElementById("mostrarPassword");
   const passwordInput = document.querySelector("input[name='password']");
-  
   if (checkbox && passwordInput) {
     checkbox.addEventListener("change", () => {
       passwordInput.type = checkbox.checked ? "text" : "password";
@@ -128,3 +131,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
