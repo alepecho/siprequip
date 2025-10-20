@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
 <body class="dashboard-body">
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#">Inventario GSI - Admin</a>
+      <a class="navbar-brand fw-bold" href="#">Inventario CGI - Admin</a>
       <div class="d-flex">
         <span class="navbar-text me-3 text-white">Bienvenido</span>
         <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
@@ -101,6 +101,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
       </div>
     </div>
   </div>
-  
 </body>
 </html>
