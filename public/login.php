@@ -4,7 +4,7 @@ session_start();
 require_once __DIR__ . '/../includes/functions.php';
 
 $errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+/*if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $correo = trim($_POST['correo']);
     $password = $_POST['password'];
 
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: dashboard.php");
         exit;
     }
-}
+}*/
 ?>
 <!doctype html>
 <html lang="es">
