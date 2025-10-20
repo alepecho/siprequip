@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="dashboard-body">
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#">Inventario GSI</a>
+      <a class="navbar-brand fw-bold" href="#">Inventario CGI</a>
       <div class="d-flex">
         <span class="navbar-text me-3 text-white"><center>Bienvenido</center></span>
         <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
@@ -72,11 +72,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <form method="post">
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label fw-semibold">Departamento / Servicio</label>
-                <input class="form-control" name="departamento" required>
+                <form action="/submit_form" method="post">
+                   <label for="Departamento">Seleccionar Departamento:</label>
+                    <select id="country" name="country">
+                        <option value="usa"></option>
+
+                    </select>
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label fw-semibold">Nombre del equipo</label>
+                <label class="form-label fw-semibold">Equipo</label>
                 <input class="form-control" name="equipo" required>
               </div>
             </div>
