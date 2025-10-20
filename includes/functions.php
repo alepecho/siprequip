@@ -1,9 +1,9 @@
 <?php
-function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correocaja, $servicio, $passwordHash) {
+function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correo_caja, $servicio_departamento, $contraseña) {
     global $conn;
-    $stmt = $conn->prepare("INSERT INTO usuarios (cedula, usuario_caja, nombre, apellido1, apellido2, correocaja, servicio, password)
+    $stmt = $conn->prepare("INSERT INTO empleados_caja (cedula, usuario_caja, nombre, apellido1, apellido2, correo_caja, servicio_departamento, contraseña)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correocaja, $servicio, $passwordHash);
+    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correo_caja, $servicio_departamento, $contraseña);
     if ($stmt->execute()) {
         return $conn->insert_id;
     }
@@ -11,13 +11,13 @@ function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $co
 }
 
 
-function findUserByEmail($correocaja) {
+/*function findUserByEmail($correo_caja) {
     global $conn;
-    $stmt = $conn->prepare("SELECT * FROM usuarios WHERE correocaja = ?");
-    $stmt->bind_param("s", $correocaja);
+    $stmt = $conn->prepare("SELECT * FROM empleados_caja WHERE correo_caja = ?");
+    $stmt->bind_param("s", $correo_caja);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
-}
+}*/
 function crearSolicitud($usuario_id, $departamento, $equipo, $cantidad, $estado, $comentario) {
     global $conn;
     $stmt = $conn->prepare("INSERT INTO solicitudes (usuario_id, departamento, equipo, cantidad, estado, comentario, fecha_solicitud)
