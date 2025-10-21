@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <a class="navbar-brand fw-bold" href="#">Inventario CGI</a>
       <div class="d-flex">
         <img src="img/Logo-CCSS-CostaRica-negro.png" alt="" class="logo" width="120">
-        <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
+        <a href="logout.php" class="boton">Cerrar sesión</a>
       </div>
     </div>
   </nav>

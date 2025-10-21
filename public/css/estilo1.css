@@ -53,3 +53,19 @@
   max-width: 50px; /* Cambia el ancho */
   height: auto; /* Mantiene la proporción */
 }
+/* Botón principal */
+.boton {
+  background-color: #055ebcd7;     /* Azul vibrante */
+  color: white;                  /* Texto blanco */
+  padding: 10px 20px;            /* Espaciado interno */
+  border: 2px solid #219eb2;                
+  border-radius: 6px;            /* Bordes redondeados */
+  font-size: 16px;               /* Tamaño de fuente */
+  font-family: 'Segoe UI', sans-serif;
+  cursor: pointer;              /* Cursor tipo mano */
+  transition: background-color 0.3s ease;
+}
+
+/* Hover: cuando el cursor pasa encima */
+.boton:hover {
+  background-color: #1d8c6c;
