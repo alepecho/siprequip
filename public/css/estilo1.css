@@ -49,3 +49,7 @@
   border-radius: 8px;
   border: 1px solid #ccc;
 }
+.logo {
+  max-width: 50px; /* Cambia el ancho */
+  height: auto; /* Mantiene la proporción */
+}
