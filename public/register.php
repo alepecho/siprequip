@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $servicio = trim($_POST['servicio']);
     $password = $_POST['password'];
 
-    if (!$cedula || !$usuario_caja || !$nombre || !$apellido1 || !$apellido2 || 
+    /*if (!$cedula || !$usuario_caja || !$nombre || !$apellido1 || !$apellido2 || 
         !filter_var($correocaja, FILTER_VALIDATE_EMAIL) || !$servicio || strlen($password) < 6) {
         $errors[] = "Rellena todos los campos correctamente (contraseña mínimo 6 caracteres).";
     } else {
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = "Error al crear usuario, intenta nuevamente.";
             }
         }
-    }
+    }*/
 }
 ?>
 <!doctype html>
