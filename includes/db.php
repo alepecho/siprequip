@@ -1,13 +1,13 @@
 <?php
 
 //conexion 
-try {
-    // Ruta al archivo de tu base de datos SQLite
-    $db = new PDO('sqlite:' . __DIR__ . '/../database/empleados.db');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("Error de conexión: " . $e->getMessage());
-}
+$server='localhost';
+$username='root';
+$password='';
+$database='';
+$db=mysqli_connect($server, $username, $password,$database);
+
+mysqli_query($db, "SET NAMES 'utf8'");
 
 //Iniciar la sesion
 
