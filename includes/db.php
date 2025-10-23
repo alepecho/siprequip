@@ -4,6 +4,10 @@ $user = "root";           // Usuario por defecto en XAMPP
 $password = "";           // Contraseña (vacía por defecto en XAMPP)
 $dbname = "empleados";    // Nombre de tu base de datos
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/FrontEnd
 // Crear conexión
 $conn = new mysqli($host, $user, $password, $dbname);
 
@@ -12,4 +16,8 @@ if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
 echo "Conexión exitosa";
+<<<<<<< HEAD
 ?>
+=======
+?>
+>>>>>>> origin/FrontEnd
