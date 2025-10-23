@@ -9,14 +9,14 @@ require_once __DIR__ . '/../includes/functions.php';
 }*/
 
 // Obtener solicitudes y procesar entrega
-/*$solicitudes = obtenerSolicitudes();
+$solicitudes = obtenerSolicitudes();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
     $id = intval($_POST['solicitud_id']);
     marcarEntregado($id);
     header("Location: admin_dashboard.php");
     exit;
-}*/
+}
 ?>
 <!doctype html>
 <html lang="es">
