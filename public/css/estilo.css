@@ -1,0 +1,38 @@
+/* Fondo general */
+body {
+  background: linear-gradient(to right, #1c3a8d, #2a5298); /* azul degradado */
+  color: #333;
+}
+
+/* Contenedor principal */
+.registro-wrapper {
+  background-color: #f0f0f0; /* gris claro */
+}
+
+/* Tarjeta de registro */
+.registro-card {
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+}
+
+/* Panel izquierdo azul */ /*203b84*/
+.registro-left {
+  background: linear-gradient(to bottom right, #2A469B, #2a5298);
+}
+
+/* Panel derecho gris claro */
+.registro-right {
+  background-color: #f8f9fa;
+}
+
+/* Botón principal */
+.btn-primary {
+  background-color: #2a5298;
+  border-color: #2a5298;
+}
+
+.btn-primary:hover {
+  background-color: #1e3c72;
+  border-color: #1e3c72;
+}
+

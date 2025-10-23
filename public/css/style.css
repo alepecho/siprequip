@@ -1,0 +1,56 @@
+/* Fondo azul sólido y centrado verticalmente */
+.login-body {
+  background-color: #1e3c72; /* azul profundo */
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', sans-serif;
+  padding: 20px;
+}
+
+/* Contenedor del formulario */
+.login-wrapper {
+  width: 100%;
+  max-width: 400px; /* más compacto */
+  background-color: #f5f5f5; /* gris claro */
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 30px;
+}
+
+/* Tarjeta */
+.card {
+  background-color: transparent;
+  border: none;
+}
+
+/* Título */
+.card-title {
+  color: #1e3c72;
+  font-size: 1.6rem;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Botón */
+.btn-primary {
+  background-color: #2a5298;
+  border-color: #2a5298;
+}
+
+.btn-primary:hover {
+  background-color: #1e3c72;
+  border-color: #1e3c72;
+}
+
+/* Campos */
+.form-control {
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+/* Etiquetas */
+.form-label {
+  color: #1e3c72;
+}
