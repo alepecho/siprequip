@@ -5,7 +5,10 @@ $password = "";           // Contraseña (vacía por defecto en XAMPP)
 $dbname = "empleados";    // Nombre de tu base de datos
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 9c326f7858dbe2d3b4e417b824449b9e31bccea6
 // Crear conexión
 $conn = new mysqli($host, $user, $password, $dbname);
 
@@ -15,4 +18,7 @@ if ($conn->connect_error) {
 }
 echo "Conexión exitosa";
 ?>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 9c326f7858dbe2d3b4e417b824449b9e31bccea6
