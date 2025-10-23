@@ -11,13 +11,13 @@ function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $co
 }
 
 
-/*function findUserByEmail($correo_caja) {
+function findUserByEmail($correo_caja) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM empleados_caja WHERE correo_caja = ?");
     $stmt->bind_param("s", $correo_caja);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
-}*/
+}
 function crearSolicitud($usuario_id, $departamento, $equipo, $cantidad, $estado, $comentario) {
     global $conn;
     $stmt = $conn->prepare("INSERT INTO solicitudes (usuario_id, departamento, equipo, cantidad, estado, comentario, fecha_solicitud)
