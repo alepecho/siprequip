@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Insertar el nuevo usuario
-    $query = "INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, servicio_depto, password)
+    $query = "INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, servicio, contraseña)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $servicio, $contraseña);
