@@ -5,7 +5,7 @@
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');        // cambia según tu XAMPP
 define('DB_PASS', '');            // cambia si tienes password
-define('DB_NAME', 'techzone_inventory');
+define('DB_NAME', '');
 
 // SMTP / PHPMailer settings (configura con tus datos SMTP)
 define('SMTP_HOST', 'smtp.tudominio.com');
