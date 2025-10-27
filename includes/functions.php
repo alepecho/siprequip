@@ -13,7 +13,7 @@ function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $co
 
 function findUserByEmail($correo_caja) {
     global $conn;
-    $stmt = $conn->prepare("SELECT * FROM empleados_caja WHERE correo_caja = ?");
+    $stmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja = ?");
     $stmt->bind_param("s", $correo_caja);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();

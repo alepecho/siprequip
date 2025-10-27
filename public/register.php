@@ -1,6 +1,11 @@
 <?php
+<<<<<<< HEAD
 /*session_start();
 require_once __DIR__ . '/../includes/db.php';
+=======
+session_start();
+require_once 'db.php'; // Asegúrate de que este archivo exista y tenga la conexión a MySQL
+>>>>>>> a94152f325c1a77a248e19524358d78b3353c75b
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
     // Capturar datos
@@ -22,9 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
         exit;
     }
 
+<<<<<<< HEAD
     // Manejar servicio
     $id_servicio = intval($_POST['id_servicio'] ?? 0);
     $nuevo_servicio = trim($_POST['nuevo_servicio'] ?? '');
+=======
+    // Insertar el nuevo usuario
+    $query = "INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, servicio, contraseña)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $id_servicio, $contraseña);
+>>>>>>> a94152f325c1a77a248e19524358d78b3353c75b
 
     if (!empty($nuevo_servicio)) {
         $checkServ = $conn->prepare("SELECT id_servicio FROM servicio WHERE nombre_servicio=?");
