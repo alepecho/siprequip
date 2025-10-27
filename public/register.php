@@ -1,43 +1,70 @@
 <?php
-session_start();
-require_once __DIR__ . '/../includes/db.php'; // Asegúrate de que este archivo exista y tenga la conexión a MySQL
+/*session_start();
+require_once __DIR__ . '/../includes/db.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Capturar los datos del formulario
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
+    // Capturar datos
     $cedula = trim($_POST['cedula']);
     $usuario_caja = trim($_POST['usuario_caja']);
     $correo_caja = trim($_POST['correo_caja']);
     $nombre = trim($_POST['nombre']);
     $apellido1 = trim($_POST['apellido1']);
     $apellido2 = trim($_POST['apellido2']);
-    $departamento = trim($_POST['departamento']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $contrasena = trim($_POST['contrasena']);
 
-    // Validar que no exista ya ese correo o usuario
-    $checkQuery = "SELECT * FROM empleados WHERE correo_caja = ? OR usuario_caja = ?";
-    $stmt = $conn->prepare($checkQuery);
-    $stmt->bind_param("ss", $correo_caja, $usuario_caja);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        echo "<script>alert('El correo o el usuario ya están registrados.'); window.location.href='login.php';</script>";
+    // Validar existencia
+    $checkStmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja=? OR usuario_caja=?");
+    $checkStmt->bind_param("ss", $correo_caja, $usuario_caja);
+    $checkStmt->execute();
+    $resCheck = $checkStmt->get_result();
+    if ($resCheck->num_rows > 0) {
+        echo "<script>alert('Correo o usuario ya registrados'); window.location.href='login.php';</script>";
         exit;
     }
 
-    // Insertar el nuevo usuario
-    $query = "INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, servicio_depto, password)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $departamento, $password);
+    // Manejar servicio
+    $id_servicio = intval($_POST['id_servicio'] ?? 0);
+    $nuevo_servicio = trim($_POST['nuevo_servicio'] ?? '');
 
-    if ($stmt->execute()) {
-        echo "<script>alert('Registro exitoso. Ahora puedes iniciar sesión.'); window.location.href='login.php';</script>";
-    } else {
-        echo "<script>alert('Error al registrar el usuario. Intenta nuevamente.'); window.location.href='login.php';</script>";
+    if (!empty($nuevo_servicio)) {
+        $checkServ = $conn->prepare("SELECT id_servicio FROM servicio WHERE nombre_servicio=?");
+        $checkServ->bind_param("s", $nuevo_servicio);
+        $checkServ->execute();
+        $resServ = $checkServ->get_result();
+
+        if ($resServ->num_rows > 0) {
+            $row = $resServ->fetch_assoc();
+            $id_servicio = $row['id_servicio'];
+        } else {
+            $insertServ = $conn->prepare("INSERT INTO servicio (nombre_servicio) VALUES (?)");
+            $insertServ->bind_param("s", $nuevo_servicio);
+            $insertServ->execute();
+            $id_servicio = $conn->insert_id;
+            $insertServ->close();
+        }
     }
 
-    $stmt->close();
-    $conn->close();
+    // Hash de contraseña
+    $contrasena_hash = password_hash($contrasena, PASSWORD_DEFAULT);
+
+    // Obtener id_rol de "Empleado"
+    $rolStmt = $conn->prepare("SELECT id_rol FROM roles WHERE nombre_rol='Empleado' LIMIT 1");
+    $rolStmt->execute();
+    $rolRes = $rolStmt->get_result();
+    $rolRow = $rolRes->fetch_assoc();
+    $id_rol = $rolRow['id_rol'] ?? 1;
+
+    // Insertar empleado
+    $insertStmt = $conn->prepare("INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, id_servicio, contraseña, id_rol)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $insertStmt->bind_param("ssssssssi", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $id_servicio, $contrasena_hash, $id_rol);
+
+    if ($conn->query($sql) === TRUE) {
+        echo "Usuario registrado correctamente";
+        header("Location: login.php");
+        exit;
+    } else {
+        echo "Error al registrar: " . $conn->error;
+    }
 }
 ?>

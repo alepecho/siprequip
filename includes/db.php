@@ -8,8 +8,8 @@ $dbname = "empleados";    // Nombre de tu base de datos
 $conn = new mysqli($host, $user, $password, $dbname);
 
 // Verificar conexión
-if ($conn->connect_error) {
+/*if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
-echo "Conexión exitosa";
+echo "Conexión exitosa";*/
 ?>
