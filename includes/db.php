@@ -11,11 +11,7 @@ $conn = new mysqli($host, $user, $password, $dbname);
 /*if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
-<<<<<<< HEAD:includes/db.php
+
 echo "Conexión exitosa";*/
 ?>
-=======
-echo "Conexión exitosa";
-?>
->>>>>>> a94152f325c1a77a248e19524358d78b3353c75b:db.php
-/*
+
