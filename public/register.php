@@ -1,83 +1,87 @@
-<?php
-<<<<<<< HEAD
-/*session_start();
-require_once __DIR__ . '/../includes/db.php';
-=======
-session_start();
-require_once 'db.php'; // Asegúrate de que este archivo exista y tenga la conexión a MySQL
->>>>>>> a94152f325c1a77a248e19524358d78b3353c75b
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
-    // Capturar datos
-    $cedula = trim($_POST['cedula']);
-    $usuario_caja = trim($_POST['usuario_caja']);
-    $correo_caja = trim($_POST['correo_caja']);
-    $nombre = trim($_POST['nombre']);
-    $apellido1 = trim($_POST['apellido1']);
-    $apellido2 = trim($_POST['apellido2']);
-    $contrasena = trim($_POST['contrasena']);
+<div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content" style="background-color:#f7f9fb;">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="registerModalLabel"><center>Crear cuenta</center></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label for="cedula" class="form-label">Cédula</label>
+            <input type="text" class="form-control" id="cedula" name="cedula" required>
+          </div>
+          <div class="mb-3">
+            <label for="usuario_caja" class="form-label">Usuario Caja</label>
+            <input type="text" class="form-control" id="usuario_caja" name="usuario_caja" required>
+          </div>
+          <div class="mb-3">
+            <label for="correo_caja" class="form-label">Correo Caja</label>
+            <input type="email" class="form-control" id="correo_caja" name="correo_caja" required>
+          </div>
+          <div class="mb-3">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombre" name="nombre" required>
+          </div>
+          <div class="mb-3">
+            <label for="apellido1" class="form-label">Apellido 1</label>
+            <input type="text" class="form-control" id="apellido1" name="apellido1" required>
+          </div>
+          <div class="mb-3">
+            <label for="apellido2" class="form-label">Apellido 2</label>
+            <input type="text" class="form-control" id="apellido2" name="apellido2">
+          </div>
 
-    // Validar existencia
-    $checkStmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja=? OR usuario_caja=?");
-    $checkStmt->bind_param("ss", $correo_caja, $usuario_caja);
-    $checkStmt->execute();
-    $resCheck = $checkStmt->get_result();
-    if ($resCheck->num_rows > 0) {
-        echo "<script>alert('Correo o usuario ya registrados'); window.location.href='login.php';</script>";
-        exit;
-    }
+          <!-- Servicios -->
+          <div class="mb-3">
+            <label for="id_servicio" class="form-label">Servicio o Depto</label>
+            <select class="form-control" id="id_servicio" name="id_servicio">
+              <option value="">Seleccione un servicio...</option>
+              <?php
+                $servicios = $conn->query("SELECT id_servicio, nombre_servicio FROM servicio");
+                while ($row = $servicios->fetch_assoc()) {
+                    echo '<option value="'.$row['id_servicio'].'">'.$row['nombre_servicio'].'</option>';
+                }
+              ?>
+            </select>
+          </div>
 
-<<<<<<< HEAD
-    // Manejar servicio
-    $id_servicio = intval($_POST['id_servicio'] ?? 0);
-    $nuevo_servicio = trim($_POST['nuevo_servicio'] ?? '');
-=======
-    // Insertar el nuevo usuario
-    $query = "INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, servicio, contraseña)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $id_servicio, $contraseña);
->>>>>>> a94152f325c1a77a248e19524358d78b3353c75b
+          <div class="mb-3">
+            <label for="nuevo_servicio" class="form-label">Agregar nuevo servicio (opcional)</label>
+            <input type="text" class="form-control" id="nuevo_servicio" name="nuevo_servicio" placeholder="Nombre del nuevo servicio">
+          </div>
 
-    if (!empty($nuevo_servicio)) {
-        $checkServ = $conn->prepare("SELECT id_servicio FROM servicio WHERE nombre_servicio=?");
-        $checkServ->bind_param("s", $nuevo_servicio);
-        $checkServ->execute();
-        $resServ = $checkServ->get_result();
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña</label>
+            <input class="form-control" name="contrasena" type="password" id="passwordRegister" placeholder="********" required>
+          </div>
 
-        if ($resServ->num_rows > 0) {
-            $row = $resServ->fetch_assoc();
-            $id_servicio = $row['id_servicio'];
-        } else {
-            $insertServ = $conn->prepare("INSERT INTO servicio (nombre_servicio) VALUES (?)");
-            $insertServ->bind_param("s", $nuevo_servicio);
-            $insertServ->execute();
-            $id_servicio = $conn->insert_id;
-            $insertServ->close();
-        }
-    }
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="showPasswordRegister">
+            <label class="form-check-label" for="showPasswordRegister">Mostrar contraseña</label>
+          </div>
 
-    // Hash de contraseña
-    $contrasena_hash = password_hash($contrasena, PASSWORD_DEFAULT);
+          <button type="submit" class="btn btn-primary w-100">Registrarse</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-    // Obtener id_rol de "Empleado"
-    $rolStmt = $conn->prepare("SELECT id_rol FROM roles WHERE nombre_rol='Empleado' LIMIT 1");
-    $rolStmt->execute();
-    $rolRes = $rolStmt->get_result();
-    $rolRow = $rolRes->fetch_assoc();
-    $id_rol = $rolRow['id_rol'] ?? 1;
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const loginCheckbox = document.getElementById("showPasswordLogin");
+  const loginInput = document.getElementById("passwordLogin");
+  loginCheckbox?.addEventListener("change", () => {
+    loginInput.type = loginCheckbox.checked ? "text" : "password";
+  });
 
-    // Insertar empleado
-    $insertStmt = $conn->prepare("INSERT INTO empleados (cedula, usuario_caja, correo_caja, nombre, apellido1, apellido2, id_servicio, contraseña, id_rol)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $insertStmt->bind_param("ssssssssi", $cedula, $usuario_caja, $correo_caja, $nombre, $apellido1, $apellido2, $id_servicio, $contrasena_hash, $id_rol);
-
-    if ($conn->query($sql) === TRUE) {
-        echo "Usuario registrado correctamente";
-        header("Location: login.php");
-        exit;
-    } else {
-        echo "Error al registrar: " . $conn->error;
-    }
-}
-?>
+  const registerCheckbox = document.getElementById("showPasswordRegister");
+  const registerInput = document.getElementById("passwordRegister");
+  registerCheckbox?.addEventListener("change", () => {
+    registerInput.type = registerCheckbox.checked ? "text" : "password";
+  });
+});
+</script>
