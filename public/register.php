@@ -46,12 +46,6 @@
               ?>
             </select>
           </div>
-
-          <div class="mb-3">
-            <label for="nuevo_servicio" class="form-label">Agregar nuevo servicio (opcional)</label>
-            <input type="text" class="form-control" id="nuevo_servicio" name="nuevo_servicio" placeholder="Nombre del nuevo servicio">
-          </div>
-
           <div class="mb-3">
             <label class="form-label fw-semibold">Contraseña</label>
             <input class="form-control" name="contrasena" type="password" id="passwordRegister" placeholder="********" required>
