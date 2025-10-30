@@ -85,14 +85,14 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'brandonsanchezpacheco@gmail.com';  // tu Gmail
-        $mail->Password = 'contraseña_app';      // contraseña de aplicación
+        $mail->Password = 'arnk lcsj gqyv joiu ';                   // contraseña de aplicación
         $mail->SMTPSecure = 'tls';
         $mail->Port = 587;
 
         $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema Inventario');
-        $mail->addAddress('admin1@tudominio.com');
-        $mail->addAddress('admin2@tudominio.com');
-        $mail->addAddress('admin3@tudominio.com');
+        $mail->addAddress('fmoragarita@gmail.com');
+        $mail->addAddress('bsanchez25031@gmail.com');
+        $mail->addAddress('Isaacchacon839@gmail.com');
 
         $mail->isHTML(true);
         $mail->Subject = 'Nueva solicitud de equipo';
@@ -110,10 +110,11 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
     }
 }
 
-// Crear la solicitud en la base de datos
+// Crear la solicitud en la base de datos (CORREGIDO)
 function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $usuario_nombre) {
     global $conn;
 
+    // Obtener datos del equipo
     $stmt = $conn->prepare("SELECT cantidad, id_estado, articulo FROM inventario WHERE id_inventario = ?");
     $stmt->bind_param("i", $id_inventario);
     $stmt->execute();
@@ -124,20 +125,37 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
     if ($id_estado != 1 || $cantidad <= 0) return false;
     if (!equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno)) return false;
 
+    // ✅ Obtener id_servicio del empleado
+    $stmt = $conn->prepare("SELECT id_servicio FROM empleados WHERE id_empleados = ?");
+    $stmt->bind_param("i", $id_usuario);
+    $stmt->execute();
+    $stmt->bind_result($id_servicio);
+    $stmt->fetch();
+    $stmt->close();
+
+    if (!$id_servicio) {
+        error_log("El empleado no tiene servicio asignado.");
+        return false;
+    }
+
+    // ✅ Insertar solicitud con id_servicio incluido
     $stmt = $conn->prepare("
-        INSERT INTO registro_detalle (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario)
-        VALUES (?, ?, ?, 2, ?)
+        INSERT INTO registro_detalle 
+        (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario, id_servicio)
+        VALUES (?, ?, ?, 2, ?, ?)
     ");
-    $stmt->bind_param("ssii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario);
+    $stmt->bind_param("ssiii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario, $id_servicio);
     $resultado = $stmt->execute();
     $stmt->close();
 
     if ($resultado) {
+        // Actualizar estado del equipo
         $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ?");
         $stmt->bind_param("i", $id_inventario);
         $stmt->execute();
         $stmt->close();
 
+        // Notificar a los administradores
         enviarNotificacionAdmin($departamento, $articulo, $fecha_salida, $fecha_retorno, $usuario_nombre);
         return true;
     }
@@ -248,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label>Fecha de Entrega</label>
+                <label>Fecha de Prestamo</label>
                 <input type="date" name="fecha_salida" class="form-control" min="<?= date('Y-m-d') ?>" required>
             </div>
             <div class="col-md-6 mb-3">
@@ -262,3 +280,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 </body>
 </html>
+
