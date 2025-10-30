@@ -30,16 +30,11 @@ $errors = [];
 // FUNCIONES
 // ==============================
 
-// Obtener todos los equipos con su estado y fecha de devolución si está prestado
+// Obtener todos los equipos con su estado y fecha de devolución
 function obtenerEquipos() {
     global $conn;
     $sql = "
-        SELECT inventario.id_inventario, inventario.articulo, estado.nombre AS nombre_estado,
-               (SELECT MAX(registro_detalle.fecha_de_retorno)
-                FROM registro_detalle
-                WHERE registro_detalle.id_inventario = inventario.id_inventario
-                  AND registro_detalle.id_estado = 2
-               ) AS fecha_retorno
+        SELECT inventario.id_inventario, inventario.articulo, estado.nombre AS nombre_estado
         FROM inventario
         JOIN estado ON inventario.id_estado = estado.id_estado
         ORDER BY inventario.articulo ASC
@@ -89,12 +84,12 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
-        $mail->Username = 'tucorreo@gmail.com';  // tu Gmail
+        $mail->Username = 'brandonsanchezpacheco@gmail.com';  // tu Gmail
         $mail->Password = 'contraseña_app';      // contraseña de aplicación
         $mail->SMTPSecure = 'tls';
         $mail->Port = 587;
 
-        $mail->setFrom('tucorreo@gmail.com', 'Sistema Inventario');
+        $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema Inventario');
         $mail->addAddress('admin1@tudominio.com');
         $mail->addAddress('admin2@tudominio.com');
         $mail->addAddress('admin3@tudominio.com');
@@ -119,7 +114,6 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
 function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $usuario_nombre) {
     global $conn;
 
-    // Verificar estado y cantidad del inventario
     $stmt = $conn->prepare("SELECT cantidad, id_estado, articulo FROM inventario WHERE id_inventario = ?");
     $stmt->bind_param("i", $id_inventario);
     $stmt->execute();
@@ -127,12 +121,11 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
     $stmt->fetch();
     $stmt->close();
 
-    if ($id_estado != 1 || $cantidad <= 0) return false; // 1 = Disponible
+    if ($id_estado != 1 || $cantidad <= 0) return false;
     if (!equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno)) return false;
 
-    // Insertar solicitud
     $stmt = $conn->prepare("
-        INSERT INTO registro_detalle (fecha_de_salida, fecha_de_retorno, id_empleandos, id_estado, id_inventario)
+        INSERT INTO registro_detalle (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario)
         VALUES (?, ?, ?, 2, ?)
     ");
     $stmt->bind_param("ssii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario);
@@ -140,7 +133,6 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
     $stmt->close();
 
     if ($resultado) {
-        // Cambiar estado del inventario a Prestado
         $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ?");
         $stmt->bind_param("i", $id_inventario);
         $stmt->execute();
@@ -156,6 +148,20 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
 // PROCESAR FORMULARIO
 // ==============================
 $equipos = obtenerEquipos();
+
+// Obtener servicio del usuario logueado
+$user_id = $_SESSION['user_id'];
+$stmt = $conn->prepare("
+    SELECT s.nombre_servicio 
+    FROM empleados e 
+    JOIN servicio s ON e.id_servicio = s.id_servicio 
+    WHERE e.id_empleados = ?
+");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$stmt->bind_result($nombre_servicio);
+$stmt->fetch();
+$stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $departamento = trim($_POST['departamento']);
@@ -205,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h3 class="text-center mb-4">Solicitud de Equipo</h3>
 
     <?php if ($success): ?>
-        <div class="alert alert-success">Solicitud enviada correctamente y los administradores han sido notificados.</div>
+        <div class="alert alert-success">✅ Solicitud enviada correctamente y los administradores han sido notificados.</div>
     <?php elseif ($errors): ?>
         <div class="alert alert-danger">
             <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
@@ -215,19 +221,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="post">
         <div class="mb-3">
             <label>Departamento / Servicio</label>
-            <input type="text" name="departamento" class="form-control" required>
+            <input type="text" name="departamento" class="form-control" value="<?= htmlspecialchars($nombre_servicio) ?>" readonly>
         </div>
 
         <div class="mb-3">
             <label>Equipo</label>
             <select name="equipo" class="form-select" required>
-                <option value="">-- Selecciona un equipo disponible --</option>
+                <option value="">-- Selecciona un equipo --</option>
                 <?php foreach($equipos as $e): ?>
                     <?php
-                        // Solo mostrar los equipos disponibles en la lista desplegable
-                        if ($e['nombre_estado'] == 'Disponible') {
-                            $label = $e['articulo'] . " (" . $e['nombre_estado'] . ")";
-                            echo "<option value='{$e['id_inventario']}'>$label</option>";
+                        $estado = $e['nombre_estado'];
+                        $nombre = htmlspecialchars($e['articulo']);
+                        $texto = $nombre . " (" . $estado . ")";
+
+                        if (strtolower($estado) === 'disponible') {
+                            echo "<option value='{$e['id_inventario']}'>✅ $texto</option>";
+                        } elseif (strtolower($estado) === 'prestado') {
+                            echo "<option value='{$e['id_inventario']}'>⚠️ $texto</option>";
+                        } else {
+                            echo "<option value='{$e['id_inventario']}'>❌ $texto</option>";
                         }
                     ?>
                 <?php endforeach; ?>
