@@ -1,6 +1,6 @@
 /* Fondo azul sólido y centrado verticalmente */
 .dashboard-body {
-  background-color: #1e3c72;
+  background-color: #bcbcbe;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -17,7 +17,7 @@
 
 /* Tarjeta gris clara */
 .card {
-  background-color: #f5f5f5;
+  background-color: #979797;
   border: none;
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
