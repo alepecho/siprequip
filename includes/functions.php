@@ -1,4 +1,16 @@
 <?php
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/PHPMailer/PHPMailer.php';
+require_once __DIR__ . '/PHPMailer/SMTP.php';
+require_once __DIR__ . '/PHPMailer/Exception.php';
+
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// ===================================================
+// CREAR USUARIO
+// ===================================================
 function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correo_caja, $servicio_departamento, $contraseña) {
     global $conn;
     $stmt = $conn->prepare("INSERT INTO empleados_caja (cedula, usuario_caja, nombre, apellido1, apellido2, correo_caja, servicio_departamento, contraseña)
@@ -10,7 +22,9 @@ function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $co
     return false;
 }
 
-
+// ===================================================
+// BUSCAR USUARIO POR CORREO
+// ===================================================
 function findUserByEmail($correo_caja) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja = ?");
@@ -18,52 +32,102 @@ function findUserByEmail($correo_caja) {
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
 }
-function crearSolicitud($usuario_id, $departamento, $equipo, $cantidad, $estado, $comentario) {
-    global $conn;
-    $stmt = $conn->prepare("INSERT INTO solicitudes (usuario_id, departamento, equipo, cantidad, estado, comentario, fecha_solicitud)
-                            VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("ississ", $usuario_id, $departamento, $equipo, $cantidad, $estado, $comentario);
-    return $stmt->execute();
-}
 
-// --- Notificación a los administradores ---
-function enviarNotificacionAdmin($departamento, $equipo, $cantidad, $estado, $comentario, $usuario) {
-    $asunto = "Nueva Solicitud de Equipo - Inventario GSI";
-    $mensaje = "
-        <h2>Nueva Solicitud de Equipo</h2>
-        <p><b>Usuario:</b> {$usuario}</p>
-        <p><b>Departamento:</b> {$departamento}</p>
-        <p><b>Equipo:</b> {$equipo}</p>
-        <p><b>Cantidad:</b> {$cantidad}</p>
-        <p><b>Estado:</b> {$estado}</p>
-        <p><b>Comentario:</b> {$comentario}</p>
-        <p><small>Fecha: " . date("d/m/Y H:i:s") . "</small></p>
-    ";
-
-    $cabeceras = "MIME-Version: 1.0\r\n";
-    $cabeceras .= "Content-type: text/html; charset=UTF-8\r\n";
-    $cabeceras .= "From: Inventario GSI <notificaciones@gsi.com>\r\n";
-
-    // Tres correos de administradores
-    $admins = ["admin1@gsi.com", "admin2@gsi.com", "admin3@gsi.com"];
-
-    foreach ($admins as $correo) {
-        mail($correo, $asunto, $mensaje, $cabeceras);
-    }
-}
+// ===================================================
+// OBTENER SOLICITUDES
+// ===================================================
 function obtenerSolicitudes() {
     global $conn;
-    $sql = "SELECT s.*, u.nombre AS nombre_usuario
-            FROM solicitudes s
-            JOIN usuarios u ON s.usuario_id = u.id
-            ORDER BY s.fecha_solicitud DESC";
+    $sql = "SELECT 
+                rd.id_registro,
+                e.nombre AS empleado,
+                i.articulo,
+                rd.fecha_de_salida,
+                rd.fecha_de_retorno,
+                es.nombre AS estado
+            FROM registro_detalle rd
+            JOIN empleados e ON rd.id_empleados = e.id_empleados
+            JOIN inventario i ON rd.id_inventario = i.id_inventario
+            JOIN estado es ON rd.id_estado = es.id_estado
+            ORDER BY rd.fecha_de_salida DESC";
     $result = $conn->query($sql);
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-function marcarEntregado($id) {
+// ===================================================
+// MARCAR SOLICITUD COMO ENTREGADA Y ENVIAR CORREO
+// ===================================================
+function marcarEntregado($id_registro) {
     global $conn;
-    $stmt = $conn->prepare("UPDATE solicitudes SET fecha_entrega = NOW() WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    return $stmt->execute();
+
+    // Actualizar estado
+    $stmt = $conn->prepare("UPDATE registro_detalle SET id_estado = 2 WHERE id_registro = ?");
+    $stmt->bind_param("i", $id_registro);
+    $stmt->execute();
+
+    // Obtener información de la solicitud para el correo
+    $sql = "SELECT 
+                e.nombre AS empleado,
+                e.correo AS correo_empleado,
+                i.articulo,
+                rd.fecha_de_salida,
+                rd.fecha_de_retorno
+            FROM registro_detalle rd
+            JOIN empleados e ON rd.id_empleados = e.id_empleados
+            JOIN inventario i ON rd.id_inventario = i.id_inventario
+            WHERE rd.id_registro = ?";
+    $stmt2 = $conn->prepare($sql);
+    $stmt2->bind_param("i", $id_registro);
+    $stmt2->execute();
+    $info = $stmt2->get_result()->fetch_assoc();
+
+    if ($info) {
+        enviarCorreoEntrega($info);
+    }
+
+    return true;
 }
+
+// ===================================================
+// ENVIAR CORREO A ADMINISTRADORES
+// ===================================================
+function enviarCorreoEntrega($info) {
+    $mail = new PHPMailer(true);
+
+    try {
+        // Configuración del servidor SMTP
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'brandonsanchezpacheco@gmail.com'; // <-- tu correo Gmail
+        $mail->Password = 'arnk lcsj gqyv joiu '; // <-- contraseña de aplicación
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        $mail->CharSet = 'UTF-8';
+
+        // Remitente
+        $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema de Inventario ');
+
+        // Destinatarios (los tres administradores)
+        $mail->addAddress('fmoragarita@gmail.com');
+        $mail->addAddress('Isaacchacon839@gmail.com');
+        $mail->addAddress('bsanchez25031@gmail.com');
+
+        // Contenido
+        $mail->isHTML(true);
+        $mail->Subject = '📦 Equipo entregado - Inventario ';
+        $mail->Body = "
+            <h3>Equipo entregado correctamente</h3>
+            <p><strong>Empleado:</strong> {$info['empleado']}</p>
+            <p><strong>Equipo:</strong> {$info['articulo']}</p>
+            <p><strong>Fecha de salida:</strong> {$info['fecha_de_salida']}</p>
+            <p><strong>Fecha de retorno:</strong> {$info['fecha_de_retorno']}</p>
+            <p>Este mensaje fue enviado automáticamente por el sistema de inventario TECHZONE.</p>
+        ";
+
+        $mail->send();
+    } catch (Exception $e) {
+        error_log("Error al enviar correo: " . $mail->ErrorInfo);
+    }
+}
+?>
