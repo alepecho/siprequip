@@ -11,13 +11,13 @@ require_once __DIR__ . '/../includes/PHPMailer/Exception.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// --- Verificar sesión activa ---
+// Verificar sesión
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-// --- Verificar rol (solo empleados, no admins) ---
+// Solo empleados (no admin)
 if (isset($_SESSION['user_rol']) && $_SESSION['user_rol'] == 3) {
     header("Location: admin_dashboard.php");
     exit;
@@ -25,20 +25,18 @@ if (isset($_SESSION['user_rol']) && $_SESSION['user_rol'] == 3) {
 
 $success = false;
 $errors = [];
+$mailError = "";
 
 // ==============================
 // FUNCIONES
 // ==============================
 
-// Obtener todos los equipos con su estado y fecha de devolución
 function obtenerEquipos() {
     global $conn;
-    $sql = "
-        SELECT inventario.id_inventario, inventario.articulo, estado.nombre AS nombre_estado
-        FROM inventario
-        JOIN estado ON inventario.id_estado = estado.id_estado
-        ORDER BY inventario.articulo ASC
-    ";
+    $sql = "SELECT inventario.id_inventario, inventario.articulo, estado.nombre AS nombre_estado, inventario.cantidad
+            FROM inventario
+            JOIN estado ON inventario.id_estado = estado.id_estado
+            ORDER BY inventario.articulo ASC";
     $result = $conn->query($sql);
     $equipos = [];
     while ($row = $result->fetch_assoc()) {
@@ -47,7 +45,6 @@ function obtenerEquipos() {
     return $equipos;
 }
 
-// Verificar si un equipo está disponible en las fechas seleccionadas
 function equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno) {
     global $conn;
     $stmt = $conn->prepare("
@@ -77,17 +74,17 @@ function equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno) {
     return $count == 0;
 }
 
-// Enviar correo a los tres administradores
-function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_retorno, $usuario_nombre) {
+function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_retorno, $usuario_nombre, &$mailError) {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
-        $mail->Username = 'brandonsanchezpacheco@gmail.com';  // tu Gmail
-        $mail->Password = 'arnk lcsj gqyv joiu ';                   // contraseña de aplicación
+        $mail->Username = 'brandonsanchezpacheco@gmail.com'; // tu Gmail
+        $mail->Password = 'arnk lcsj gqyv joiu';             // contraseña de aplicación (sin espacios)
         $mail->SMTPSecure = 'tls';
         $mail->Port = 587;
+        $mail->CharSet = 'UTF-8';
 
         $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema Inventario');
         $mail->addAddress('fmoragarita@gmail.com');
@@ -105,27 +102,28 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
             <p><strong>Fecha de Devolución:</strong> $fecha_retorno</p>
         ";
         $mail->send();
+        return true;
     } catch (Exception $e) {
-        error_log("Error al enviar correo: " . $mail->ErrorInfo);
+        $mailError = "Error al enviar correo: " . $mail->ErrorInfo;
+        return false;
     }
 }
 
-// Crear la solicitud en la base de datos (CORREGIDO)
-function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $usuario_nombre) {
+function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $cantidad_solicitada, $usuario_nombre, &$mailError) {
     global $conn;
 
-    // Obtener datos del equipo
+    // Datos del equipo
     $stmt = $conn->prepare("SELECT cantidad, id_estado, articulo FROM inventario WHERE id_inventario = ?");
     $stmt->bind_param("i", $id_inventario);
     $stmt->execute();
-    $stmt->bind_result($cantidad, $id_estado, $articulo);
+    $stmt->bind_result($cantidad_disponible, $id_estado, $articulo);
     $stmt->fetch();
     $stmt->close();
 
-    if ($id_estado != 1 || $cantidad <= 0) return false;
+    if ($id_estado != 1 || $cantidad_disponible < $cantidad_solicitada) return false;
     if (!equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno)) return false;
 
-    // ✅ Obtener id_servicio del empleado
+    // id_servicio del empleado
     $stmt = $conn->prepare("SELECT id_servicio FROM empleados WHERE id_empleados = ?");
     $stmt->bind_param("i", $id_usuario);
     $stmt->execute();
@@ -133,30 +131,33 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
     $stmt->fetch();
     $stmt->close();
 
-    if (!$id_servicio) {
-        error_log("El empleado no tiene servicio asignado.");
-        return false;
-    }
+    if (!$id_servicio) return false;
 
-    // ✅ Insertar solicitud con id_servicio incluido
+    // Insertar solicitud
     $stmt = $conn->prepare("
         INSERT INTO registro_detalle 
-        (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario, id_servicio)
-        VALUES (?, ?, ?, 2, ?, ?)
+        (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario, id_servicio, cantidad)
+        VALUES (?, ?, ?, 2, ?, ?, ?)
     ");
-    $stmt->bind_param("ssiii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario, $id_servicio);
+    $stmt->bind_param("ssiiii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario, $id_servicio, $cantidad_solicitada);
     $resultado = $stmt->execute();
     $stmt->close();
 
     if ($resultado) {
-        // Actualizar estado del equipo
-        $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ?");
+        // Actualizar cantidad del inventario
+        $stmt = $conn->prepare("UPDATE inventario SET cantidad = cantidad - ? WHERE id_inventario = ?");
+        $stmt->bind_param("ii", $cantidad_solicitada, $id_inventario);
+        $stmt->execute();
+        $stmt->close();
+
+        // Si la cantidad llega a 0, cambiar estado a ocupado
+        $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ? AND cantidad = 0");
         $stmt->bind_param("i", $id_inventario);
         $stmt->execute();
         $stmt->close();
 
-        // Notificar a los administradores
-        enviarNotificacionAdmin($departamento, $articulo, $fecha_salida, $fecha_retorno, $usuario_nombre);
+        // Notificar a los admins
+        enviarNotificacionAdmin($departamento, $articulo, $fecha_salida, $fecha_retorno, $usuario_nombre, $mailError);
         return true;
     }
     return false;
@@ -167,7 +168,7 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
 // ==============================
 $equipos = obtenerEquipos();
 
-// Obtener servicio del usuario logueado
+// Servicio del usuario
 $user_id = $_SESSION['user_id'];
 $stmt = $conn->prepare("
     SELECT s.nombre_servicio 
@@ -186,18 +187,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_inventario = intval($_POST['equipo']);
     $fecha_salida = $_POST['fecha_salida'];
     $fecha_retorno = $_POST['fecha_retorno'];
+    $cantidad_solicitada = intval($_POST['cantidad_solicitada']);
     $id_usuario = $_SESSION['user_id'];
 
     $hoy = date('Y-m-d');
     if ($fecha_salida < $hoy) $errors[] = "La fecha de entrega no puede ser anterior a hoy.";
     if ($fecha_retorno < $fecha_salida) $errors[] = "La fecha de devolución no puede ser anterior a la fecha de entrega.";
-    if (!$departamento || !$id_inventario || !$fecha_salida || !$fecha_retorno) $errors[] = "Completa todos los campos.";
+    if (!$departamento || !$id_inventario || !$fecha_salida || !$fecha_retorno || !$cantidad_solicitada) $errors[] = "Completa todos los campos.";
 
     if (empty($errors)) {
-        if (crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $_SESSION['user_name'])) {
+        if (crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $cantidad_solicitada, $_SESSION['user_name'], $mailError)) {
             $success = true;
         } else {
-            $errors[] = "El equipo no está disponible o ocurrió un error.";
+            $errors[] = "El equipo no está disponible o ocurrió un error (revisa la cantidad solicitada).";
         }
     }
 }
@@ -213,9 +215,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="stylesheet" href="css/estilo1.css">
 </head>
 <body>
-   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#">Inventario GSI</a>
+      <a class="navbar-brand fw-bold" href="#">Inventario CGI</a>
       <div class="d-flex">
         <span class="navbar-text me-3 text-white">
           Bienvenido, <?= htmlspecialchars($_SESSION['user_name']); ?>
@@ -223,13 +225,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
       </div>
     </div>
-  </nav>
+</nav>
 
 <div class="container py-5">
     <h3 class="text-center mb-4">Solicitud de Equipo</h3>
 
     <?php if ($success): ?>
-        <div class="alert alert-success">✅ Solicitud enviada correctamente y los administradores han sido notificados.</div>
+        <div class="alert alert-success">
+            ✅ Solicitud enviada correctamente.
+            <?php if ($mailError) echo "<br><small class='text-danger'>$mailError</small>"; ?>
+        </div>
     <?php elseif ($errors): ?>
         <div class="alert alert-danger">
             <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
@@ -244,29 +249,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="mb-3">
             <label>Equipo</label>
-            <select name="equipo" class="form-select" required>
+            <select id="equipo-select" name="equipo" class="form-select" required>
                 <option value="">-- Selecciona un equipo --</option>
-                <?php foreach($equipos as $e): ?>
-                    <?php
-                        $estado = $e['nombre_estado'];
-                        $nombre = htmlspecialchars($e['articulo']);
-                        $texto = $nombre . " (" . $estado . ")";
-
-                        if (strtolower($estado) === 'disponible') {
-                            echo "<option value='{$e['id_inventario']}'>✅ $texto</option>";
-                        } elseif (strtolower($estado) === 'prestado') {
-                            echo "<option value='{$e['id_inventario']}'>⚠️ $texto</option>";
-                        } else {
-                            echo "<option value='{$e['id_inventario']}'>❌ $texto</option>";
-                        }
-                    ?>
+                <?php foreach($equipos as $e): 
+                    $estado = $e['nombre_estado'];
+                    $nombre = htmlspecialchars($e['articulo']);
+                    $cantidad = $e['cantidad'];
+                    $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'prestado' ? '⚠️' : '❌');
+                ?>
+                    <option value="<?= $e['id_inventario'] ?>" data-cantidad="<?= $cantidad ?>">
+                        <?= "$icon $nombre ($estado) - Cant: $cantidad" ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
         </div>
 
+        <div class="mb-3">
+            <label>Cantidad a solicitar</label>
+            <input type="number" name="cantidad_solicitada" id="cantidad-solicitada" class="form-control" min="1" value="1" required>
+        </div>
+
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label>Fecha de Prestamo</label>
+                <label>Fecha de Préstamo</label>
                 <input type="date" name="fecha_salida" class="form-control" min="<?= date('Y-m-d') ?>" required>
             </div>
             <div class="col-md-6 mb-3">
@@ -278,6 +283,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button class="btn btn-primary w-100">Enviar Solicitud</button>
     </form>
 </div>
+
+<script>
+// Ajustar el máximo de cantidad según el equipo seleccionado
+const equipoSelect = document.getElementById('equipo-select');
+const cantidadInput = document.getElementById('cantidad-solicitada');
+
+equipoSelect.addEventListener('change', () => {
+    const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad);
+    cantidadInput.max = max;
+    if (cantidadInput.value > max) cantidadInput.value = max;
+});
+</script>
+
 </body>
 </html>
+
 

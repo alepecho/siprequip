@@ -1,96 +1,115 @@
 <?php
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/PHPMailer/PHPMailer.php';
-require_once __DIR__ . '/PHPMailer/SMTP.php';
-require_once __DIR__ . '/PHPMailer/Exception.php';
+// ======================================================
+// CONEXIÓN A LA BASE DE DATOS
+// ======================================================
+$host = 'localhost';
+$user = 'root';
+$pass = '';
+$db   = 'empleados';
 
+$conn = new mysqli($host, $user, $pass, $db);
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// ===================================================
-// CREAR USUARIO
-// ===================================================
-function createUser($cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correo_caja, $servicio_departamento, $contraseña) {
-    global $conn;
-    $stmt = $conn->prepare("INSERT INTO empleados_caja (cedula, usuario_caja, nombre, apellido1, apellido2, correo_caja, servicio_departamento, contraseña)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssssss", $cedula, $usuario_caja, $nombre, $apellido1, $apellido2, $correo_caja, $servicio_departamento, $contraseña);
-    if ($stmt->execute()) {
-        return $conn->insert_id;
-    }
-    return false;
+if ($conn->connect_error) {
+    die('Error de conexión: ' . $conn->connect_error);
 }
 
-// ===================================================
-// BUSCAR USUARIO POR CORREO
-// ===================================================
-function findUserByEmail($correo_caja) {
+// ======================================================
+// FUNCION: Obtener todos los empleados
+// ======================================================
+function obtenerEmpleados() {
     global $conn;
-    $stmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja = ?");
-    $stmt->bind_param("s", $correo_caja);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
-}
-
-// ===================================================
-// OBTENER SOLICITUDES
-// ===================================================
-function obtenerSolicitudes() {
-    global $conn;
-    $sql = "SELECT 
-                rd.id_registro,
-                e.nombre AS empleado,
-                i.articulo,
-                rd.fecha_de_salida,
-                rd.fecha_de_retorno,
-                es.nombre AS estado
-            FROM registro_detalle rd
-            JOIN empleados e ON rd.id_empleados = e.id_empleados
-            JOIN inventario i ON rd.id_inventario = i.id_inventario
-            JOIN estado es ON rd.id_estado = es.id_estado
-            ORDER BY rd.fecha_de_salida DESC";
+    $sql = "SELECT * FROM empleados ORDER BY nombre";
     $result = $conn->query($sql);
-    return $result->fetch_all(MYSQLI_ASSOC);
+    $empleados = [];
+    while ($row = $result->fetch_assoc()) {
+        $empleados[] = $row;
+    }
+    return $empleados;
 }
 
-// ===================================================
-// MARCAR SOLICITUD COMO ENTREGADA Y ENVIAR CORREO
-// ===================================================
+// ======================================================
+// FUNCION: Obtener todos los servicios
+// ======================================================
+function obtenerServicios() {
+    global $conn;
+    $sql = "SELECT * FROM servicio ORDER BY id_servicio";
+    $result = $conn->query($sql);
+    $servicios = [];
+    while ($row = $result->fetch_assoc()) {
+        $servicios[] = $row;
+    }
+    return $servicios;
+}
+
+// ======================================================
+// FUNCION: Obtener todos los equipos del inventario
+// ======================================================
+function obtenerInventario() {
+    global $conn;
+    $sql = "SELECT * FROM inventario ORDER BY articulo";
+    $result = $conn->query($sql);
+    $inventario = [];
+    while ($row = $result->fetch_assoc()) {
+        $inventario[] = $row;
+    }
+    return $inventario;
+}
+/*
+// ======================================================
+// FUNCION: Registrar nueva solicitud
+// ======================================================
+function crearSolicitud($id_empleados, $id_servicio, $id_inventario, $fecha_salida, $fecha_retorno) {
+    global $conn;
+    $sql = "INSERT INTO registro_detalle (id_empleados, id_servicio, id_inventario, fecha_de_salida, fecha_de_retorno, id_estado)
+            VALUES (?, ?, ?, ?, ?, 2)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("iiiss", $id_empleados, $id_servicio, $id_inventario, $fecha_salida, $fecha_retorno);
+    return $stmt->execute();
+}
+*/
+// ======================================================
+// FUNCION: Marcar una solicitud como entregada
+// ======================================================
+/*
 function marcarEntregado($id_registro) {
     global $conn;
-
-    // Actualizar estado
-    $stmt = $conn->prepare("UPDATE registro_detalle SET id_estado = 2 WHERE id_registro = ?");
+    $sql = "UPDATE registro_detalle SET id_estado = 1 WHERE id_registro = ?";
+    $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $id_registro);
     $stmt->execute();
-
-    // Obtener información de la solicitud para el correo
-    $sql = "SELECT 
-                e.nombre AS empleado,
-                e.correo AS correo_empleado,
-                i.articulo,
-                rd.fecha_de_salida,
-                rd.fecha_de_retorno
-            FROM registro_detalle rd
-            JOIN empleados e ON rd.id_empleados = e.id_empleados
-            JOIN inventario i ON rd.id_inventario = i.id_inventario
-            WHERE rd.id_registro = ?";
-    $stmt2 = $conn->prepare($sql);
-    $stmt2->bind_param("i", $id_registro);
-    $stmt2->execute();
-    $info = $stmt2->get_result()->fetch_assoc();
-
-    if ($info) {
-        enviarCorreoEntrega($info);
-    }
-
-    return true;
 }
-
-// ===================================================
-// ENVIAR CORREO A ADMINISTRADORES
-// ===================================================
+*/
+// ======================================================
+// FUNCION: Obtener todas las solicitudes (para admin)
+// ======================================================
+function obtenerSolicitudes() {
+    global $conn;
+    $sql = "
+        SELECT 
+            r.id_registro,
+            e.id_empleados,
+            CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) AS usuario,
+            s.id_servicio,
+            i.articulo AS equipo,
+            i.cantidad,
+            es.nombre AS estado,
+            r.fecha_de_salida AS fecha_solicitud,
+            r.fecha_de_retorno AS fecha_entrega,
+            r.id_estado
+        FROM registro_detalle r
+        JOIN empleados e ON r.id_empleados = e.id_empleados
+        JOIN servicio s ON r.id_servicio = s.id_servicio
+        JOIN inventario i ON r.id_inventario = i.id_inventario
+        JOIN estado es ON r.id_estado = es.id_estado
+        ORDER BY r.fecha_de_salida DESC
+    ";
+    $result = $conn->query($sql);
+    $solicitudes = [];
+    while ($row = $result->fetch_assoc()) {
+        $solicitudes[] = $row;
+    }
+    return $solicitudes;
+}
 function enviarCorreoEntrega($info) {
     $mail = new PHPMailer(true);
 
@@ -122,7 +141,7 @@ function enviarCorreoEntrega($info) {
             <p><strong>Equipo:</strong> {$info['articulo']}</p>
             <p><strong>Fecha de salida:</strong> {$info['fecha_de_salida']}</p>
             <p><strong>Fecha de retorno:</strong> {$info['fecha_de_retorno']}</p>
-            <p>Este mensaje fue enviado automáticamente por el sistema de inventario TECHZONE.</p>
+            <p>Este mensaje fue enviado automáticamente por el sistema de inventario</p>
         ";
 
         $mail->send();
