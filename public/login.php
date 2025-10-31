@@ -162,6 +162,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
 <div class="login-wrapper">
   <div class="card">
     <div class="card-body">
+      <img src="img/logo-CCSS-CostaRica-negro.png" 
+            alt="logo-CCSS" 
+            class="img-fluid mb-3 d-block mx-auto"
+            style="max-width: 100px; height: auto;">
+
       <h3 class="card-title text-center text-primary mb-4 fw-bold">Inicio de Sesión</h3>
 
       <?php if($errors_login): ?>
