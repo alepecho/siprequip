@@ -99,6 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
 } 
 ?>
 
+
+
 <!doctype html> 
 <html lang="es"> 
 <head>
@@ -107,6 +109,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
    <title>Panel Administrador - Inventario</title>
    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
    <link rel="stylesheet" href="estilo2.css">
+
+   <style>
+     /* ✅ Título blanco, visible sobre fondo azul */
+     .titulo-principal {
+        color: #ffffff; /* Blanco puro */
+        font-weight: 800;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* da contraste sobre fondo azul */
+        margin-bottom: 25px;
+     }
+   </style>
 </head>
 <body class="dashboard-body">
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -126,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
      <div class="container">
          <div class="row justify-content-center">
              <div class="col-md-11">
-                 <h3 class="text-center text-primary fw-bold mb-4">Registro de Solicitudes</h3>
+                 <h3 class="titulo-principal">Registro de Solicitudes</h3>
                   <div class="table-responsive shadow-sm">
                       <table class="table table-bordered table-hover align-middle">
                           <thead class="table-primary text-center">
@@ -184,3 +199,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
 </div>
 </body> 
 </html>
+
+
