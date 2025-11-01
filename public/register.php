@@ -1,4 +1,3 @@
-
 <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content" style="background-color:#f7f9fb;">
@@ -46,9 +45,22 @@
               ?>
             </select>
           </div>
+
           <div class="mb-3">
             <label class="form-label fw-semibold">Contraseña</label>
             <input class="form-control" name="contrasena" type="password" id="passwordRegister" placeholder="********" required>
+            
+            <!-- 🔹 NUEVO: Indicador de fuerza -->
+            <small id="passwordStrengthText" class="form-text mt-1 fw-semibold"></small>
+
+            <!-- 🔹 NUEVO: Requisitos de la contraseña -->
+            <ul id="passwordRequirements" class="list-unstyled small mt-2">
+              <li id="req-length">• Al menos 8 caracteres</li>
+              <li id="req-upper">• Una letra mayúscula</li>
+              <li id="req-lower">• Una letra minúscula</li>
+              <li id="req-number">• Un número</li>
+              <li id="req-special">• Un carácter especial (!@#$%^&*)</li>
+            </ul>
           </div>
 
           <div class="form-check mb-3">
@@ -56,7 +68,8 @@
             <label class="form-check-label" for="showPasswordRegister">Mostrar contraseña</label>
           </div>
 
-          <button type="submit" class="btn btn-primary w-100">Registrarse</button>
+          <!-- 🔹 Botón modificado: con ID y desactivado al inicio -->
+          <button type="submit" class="btn btn-primary w-100" id="registerButton" disabled>Registrarse</button>
         </form>
       </div>
     </div>
@@ -77,5 +90,57 @@ document.addEventListener("DOMContentLoaded", () => {
   registerCheckbox?.addEventListener("change", () => {
     registerInput.type = registerCheckbox.checked ? "text" : "password";
   });
+
+  // 🔹 NUEVO: Verificación de fuerza de contraseña
+  const strengthText = document.getElementById("passwordStrengthText");
+  const registerButton = document.getElementById("registerButton");
+  const requirements = {
+    length: document.getElementById("req-length"),
+    upper: document.getElementById("req-upper"),
+    lower: document.getElementById("req-lower"),
+    number: document.getElementById("req-number"),
+    special: document.getElementById("req-special")
+  };
+
+  registerInput.addEventListener("input", () => {
+    const val = registerInput.value;
+
+    const hasLength = val.length >= 8;
+    const hasUpper = /[A-Z]/.test(val);
+    const hasLower = /[a-z]/.test(val);
+    const hasNumber = /\d/.test(val);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(val);
+
+    updateRequirement(requirements.length, hasLength);
+    updateRequirement(requirements.upper, hasUpper);
+    updateRequirement(requirements.lower, hasLower);
+    updateRequirement(requirements.number, hasNumber);
+    updateRequirement(requirements.special, hasSpecial);
+
+    const score = [hasLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+
+    // Mostrar nivel de fuerza
+    if (val.length === 0) {
+      strengthText.textContent = "";
+      registerButton.disabled = true; // 🔹 Bloquea si está vacío
+    } else if (score <= 2) {
+      strengthText.textContent = "Fuerza: Débil";
+      strengthText.style.color = "red";
+      registerButton.disabled = true;
+    } else if (score === 3 || score === 4) {
+      strengthText.textContent = "Fuerza: Media";
+      strengthText.style.color = "orange";
+      registerButton.disabled = true;
+    } else {
+      strengthText.textContent = "Fuerza: Fuerte";
+      strengthText.style.color = "green";
+      registerButton.disabled = false; // 🔹 Solo se habilita si cumple todo
+    }
+  });
+
+  function updateRequirement(element, isValid) {
+    element.style.color = isValid ? "green" : "red";
+    element.style.fontWeight = isValid ? "bold" : "normal";
+  }
 });
 </script>
