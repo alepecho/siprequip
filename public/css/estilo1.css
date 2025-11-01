@@ -1,72 +1,135 @@
-/* Fondo azul sólido y centrado verticalmente */
+/* ===================================================
+   ESTILO INSTITUCIONAL / MINIMALISTA - INVENTARIO CGI
+   =================================================== */
+
+/* ======== ESTRUCTURA GENERAL ======== */
 .dashboard-body {
-  background-color: #bcbcbe;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f4f6fa;
+  color: #1e3c72;
 }
 
-/* Contenedor centrado */
+/* ======== NAVBAR ======== */
+.navbar {
+  background-color: #1e3c72;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 0.6rem 1rem;
+  z-index: 10;
+}
+.navbar-brand {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.navbar-brand:hover {
+  color: #dce3f5;
+}
+.logo {
+  max-width: 42px;
+  height: auto;
+  border-radius: 6px;
+}
+
+/* ======== CONTENEDOR PRINCIPAL ======== */
 .dashboard-wrapper {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 50px 15px;
 }
 
-/* Tarjeta gris clara */
-.card {
-  background-color: #979797;
-  border: none;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+/* ======== TARJETA ======== */
+.form-card {
+  background-color: #ffffff;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 520px;
+  padding: 30px;
+  animation: fadeUp 0.5s ease;
 }
-
-/* Título */
 .card-title {
   color: #1e3c72;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5rem;
 }
 
-/* Botón */
-.btn-primary {
-  background-color: #2a5298;
-  border-color: #2a5298;
-}
-
-.btn-primary:hover {
-  background-color: #1e3c72;
-  border-color: #1e3c72;
-}
-
-/* Etiquetas */
+/* ======== FORMULARIO ======== */
 .form-label {
   color: #1e3c72;
+  font-weight: 600;
+}
+.form-control,
+.form-select {
+  border-radius: 6px;
+  border: 1px solid #ccd3e0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: #1e3c72;
+  box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.15);
+  outline: none;
 }
 
-/* Campos */
-.form-control {
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
-.logo {
-  max-width: 50px; /* Cambia el ancho */
-  height: auto; /* Mantiene la proporción */
-}
-/* Botón principal */
+/* ======== BOTÓN ======== */
 .boton {
-  background-color: #055ebcd7;     /* Azul vibrante */
-  color: white;                  /* Texto blanco */
-  padding: 10px 20px;            /* Espaciado interno */
-  border: 2px solid #219eb2;                
-  border-radius: 6px;            /* Bordes redondeados */
-  font-size: 16px;               /* Tamaño de fuente */
-  font-family: 'Segoe UI', sans-serif;
-  cursor: pointer;              /* Cursor tipo mano */
-  transition: background-color 0.3s ease;
+  background-color: #1e3c72;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 0;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.boton:hover {
+  background-color: #284c9a;
+  transform: translateY(-1px);
 }
 
-/* Hover: cuando el cursor pasa encima */
-.boton:hover {
-  background-color: #169772cc;
+/* ======== ALERTAS ======== */
+.alert {
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+}
+.alert-success {
+  background-color: #e7f6ea;
+  color: #1a5c2b;
+}
+.alert-danger {
+  background-color: #fdecea;
+  color: #822029;
+}
+
+/* ======== SPINNER DE CARGA ======== */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(30, 60, 114, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 2000;
+}
+#loading-overlay p {
+  font-size: 1rem;
+  color: #ffffff;
+  margin-top: 12px;
+}
+
+/* ======== ANIMACIONES ======== */
+@keyframes fadeUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
