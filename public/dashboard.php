@@ -214,89 +214,248 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="css/estilo1.css">
 </head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#">Inventario CGI</a>
-      <div class="d-flex">
-        <span class="navbar-text me-3 text-white">
-          Bienvenido, <?= htmlspecialchars($_SESSION['user_name']); ?>
-        </span>
-        <a href="logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
-      </div>
+<body class="dashboard-body">
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
+      <img src="img/Logo-CCSS-CostaRica-negro.png" alt="Logo" class="logo me-2">
+      Inventario CGI
+    </a>
+    <div class="d-flex align-items-center">
+      <span class="navbar-text me-3 text-white">
+        Bienvenido, <?= htmlspecialchars($_SESSION['user_name']); ?>
+      </span>
+      <a href="logout.php" class="btn btn-light btn-sm fw-semibold">Cerrar sesión</a>
     </div>
+  </div>
 </nav>
 
-<div class="container py-5">
-    <h3 class="text-center mb-4">Solicitud de Equipo</h3>
+<!-- CONTENIDO -->
+<div class="dashboard-wrapper">
+  <div class="card form-card p-4">
+    <h3 class="card-title text-center mb-4 fw-bold">Solicitud de Equipo</h3>
 
     <?php if ($success): ?>
-        <div class="alert alert-success">
-            ✅ Solicitud enviada correctamente.
-            <?php if ($mailError) echo "<br><small class='text-danger'>$mailError</small>"; ?>
-        </div>
+      <div class="alert alert-success shadow-sm">
+        ✅ Solicitud enviada correctamente.
+        <?php if ($mailError) echo "<br><small class='text-danger'>$mailError</small>"; ?>
+      </div>
     <?php elseif ($errors): ?>
-        <div class="alert alert-danger">
-            <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
-        </div>
+      <div class="alert alert-danger shadow-sm">
+        <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
+      </div>
     <?php endif; ?>
 
     <form method="post">
-        <div class="mb-3">
-            <label>Departamento / Servicio</label>
-            <input type="text" name="departamento" class="form-control" value="<?= htmlspecialchars($nombre_servicio) ?>" readonly>
-        </div>
+      <div class="mb-3">
+        <label class="form-label">Departamento / Servicio</label>
+        <input type="text" name="departamento" class="form-control" 
+          value="<?= htmlspecialchars($nombre_servicio) ?>" readonly>
+      </div>
 
-        <div class="mb-3">
-            <label>Equipo</label>
-            <select id="equipo-select" name="equipo" class="form-select" required>
-                <option value="">-- Selecciona un equipo --</option>
-                <?php foreach($equipos as $e): 
-                    $estado = $e['nombre_estado'];
-                    $nombre = htmlspecialchars($e['articulo']);
-                    $cantidad = $e['cantidad'];
-                    $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'prestado' ? '⚠️' : '❌');
-                ?>
-                    <option value="<?= $e['id_inventario'] ?>" data-cantidad="<?= $cantidad ?>">
-                        <?= "$icon $nombre ($estado) - Cant: $cantidad" ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+      <div class="mb-3">
+        <label class="form-label">Equipo</label>
+        <select id="equipo-select" name="equipo" class="form-select" required>
+          <option value="">-- Selecciona un equipo --</option>
+          <?php foreach($equipos as $e): 
+            $estado = $e['nombre_estado'];
+            $nombre = htmlspecialchars($e['articulo']);
+            $cantidad = $e['cantidad'];
+            $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'prestado' ? '⚠️' : '❌');
+          ?>
+            <option value="<?= $e['id_inventario'] ?>" data-cantidad="<?= $cantidad ?>">
+              <?= "$icon $nombre ($estado) - Cant: $cantidad" ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
 
-        <div class="mb-3">
-            <label>Cantidad a solicitar</label>
-            <input type="number" name="cantidad_solicitada" id="cantidad-solicitada" class="form-control" min="1" value="1" required>
-        </div>
+      <div class="mb-3">
+        <label class="form-label">Cantidad a solicitar</label>
+        <input type="number" name="cantidad_solicitada" id="cantidad-solicitada"
+          class="form-control" min="1" value="1" required>
+      </div>
 
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label>Fecha de Préstamo</label>
-                <input type="date" name="fecha_salida" class="form-control" min="<?= date('Y-m-d') ?>" required>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label>Fecha de Devolución</label>
-                <input type="date" name="fecha_retorno" class="form-control" min="<?= date('Y-m-d') ?>" required>
-            </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Fecha de Préstamo</label>
+          <input type="date" name="fecha_salida" class="form-control"
+            min="<?= date('Y-m-d') ?>" required>
         </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Fecha de Devolución</label>
+          <input type="date" name="fecha_retorno" class="form-control"
+            min="<?= date('Y-m-d') ?>" required>
+        </div>
+      </div>
 
-        <button class="btn btn-primary w-100">Enviar Solicitud</button>
+      <button class="btn boton w-100 py-2">Enviar Solicitud</button>
     </form>
+  </div>
+</div>
+
+<!-- SPINNER DE CARGA -->
+<div id="loading-overlay">
+  <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;"></div>
+  <p class="text-white mt-3">Procesando solicitud...</p>
 </div>
 
 <script>
-// Ajustar el máximo de cantidad según el equipo seleccionado
 const equipoSelect = document.getElementById('equipo-select');
 const cantidadInput = document.getElementById('cantidad-solicitada');
-
 equipoSelect.addEventListener('change', () => {
-    const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad);
-    cantidadInput.max = max;
-    if (cantidadInput.value > max) cantidadInput.value = max;
+  const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad);
+  cantidadInput.max = max;
+  if (cantidadInput.value > max) cantidadInput.value = max;
+});
+
+// Spinner al enviar formulario
+document.querySelector("form").addEventListener("submit", function() {
+  document.getElementById("loading-overlay").style.display = "flex";
 });
 </script>
 
+<style>
+/* ===================================================
+   ESTILO INSTITUCIONAL / MINIMALISTA - INVENTARIO CGI
+   =================================================== */
+
+/* ======== ESTRUCTURA GENERAL ======== */
+.dashboard-body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f4f6fa;
+  color: #1e3c72;
+}
+
+/* ======== NAVBAR ======== */
+.navbar {
+  background-color: #1e3c72;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 0.6rem 1rem;
+  z-index: 10;
+}
+.navbar-brand {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.navbar-brand:hover {
+  color: #dce3f5;
+}
+.logo {
+  max-width: 42px;
+  height: auto;
+  border-radius: 6px;
+}
+
+/* ======== CONTENEDOR PRINCIPAL ======== */
+.dashboard-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 15px;
+}
+
+/* ======== TARJETA ======== */
+.form-card {
+  background-color: #ffffff;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 520px;
+  padding: 30px;
+  animation: fadeUp 0.5s ease;
+}
+.card-title {
+  color: #1e3c72;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* ======== FORMULARIO ======== */
+.form-label {
+  color: #1e3c72;
+  font-weight: 600;
+}
+.form-control,
+.form-select {
+  border-radius: 6px;
+  border: 1px solid #ccd3e0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: #1e3c72;
+  box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.15);
+  outline: none;
+}
+
+/* ======== BOTÓN ======== */
+.boton {
+  background-color: #1e3c72;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 0;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.boton:hover {
+  background-color: #284c9a;
+  transform: translateY(-1px);
+}
+
+/* ======== ALERTAS ======== */
+.alert {
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+}
+.alert-success {
+  background-color: #e7f6ea;
+  color: #1a5c2b;
+}
+.alert-danger {
+  background-color: #fdecea;
+  color: #822029;
+}
+
+/* ======== SPINNER DE CARGA ======== */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(30, 60, 114, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 2000;
+}
+#loading-overlay p {
+  font-size: 1rem;
+  color: #ffffff;
+  margin-top: 12px;
+}
+
+/* ======== ANIMACIONES ======== */
+@keyframes fadeUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
+    </style>
 </body>
 </html>
-
 
