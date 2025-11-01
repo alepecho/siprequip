@@ -236,24 +236,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
             <label class="form-label fw-semibold">Cédula</label>
             <input class="form-control" name="cedula_forgot" type="text" placeholder="Cédula" required>
           </div>
+
+          <!-- 🔹 NUEVO: Campo con verificación de fuerza -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Nueva contraseña</label>
             <input class="form-control" type="password" name="password_forgot" id="passwordForgot" required>
+
+            <!-- 🔹 Indicador de fuerza -->
+            <small id="passwordForgotStrengthText" class="form-text mt-1 fw-semibold"></small>
+
+            <!-- 🔹 Requisitos -->
+            <ul id="passwordForgotRequirements" class="list-unstyled small mt-2">
+              <li id="f-req-length">• Al menos 8 caracteres</li>
+              <li id="f-req-upper">• Una letra mayúscula</li>
+              <li id="f-req-lower">• Una letra minúscula</li>
+              <li id="f-req-number">• Un número</li>
+              <li id="f-req-special">• Un carácter especial (!@#$%^&*)</li>
+            </ul>
           </div>
+
           <div class="mb-3">
             <label class="form-label fw-semibold">Confirmar nueva contraseña</label>
             <input class="form-control" type="password" name="password_forgot_confirm" id="passwordForgotConfirm" required>
+            <!-- 🔹 Mensaje de error si no coinciden -->
+            <small id="passwordMismatch" class="text-danger fw-semibold" style="display:none;">⚠️ Las contraseñas no coinciden</small>
           </div>
+
           <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="showPasswordForgot">
             <label class="form-check-label" for="showPasswordForgot">Mostrar contraseñas</label>
           </div>
-          <button class="btn btn-primary w-100 rounded-3">Restablecer contraseña</button>
+
+          <!-- 🔹 Botón desactivado inicialmente -->
+          <button class="btn btn-primary w-100 rounded-3" id="forgotButton" disabled>Restablecer contraseña</button>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 🔹 SCRIPT -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const forgotPasswordInput = document.getElementById("passwordForgot");
+  const confirmInput = document.getElementById("passwordForgotConfirm");
+  const showPasswords = document.getElementById("showPasswordForgot");
+  const forgotButton = document.getElementById("forgotButton");
+  const strengthText = document.getElementById("passwordForgotStrengthText");
+  const mismatchMsg = document.getElementById("passwordMismatch");
+
+  const reqs = {
+    length: document.getElementById("f-req-length"),
+    upper: document.getElementById("f-req-upper"),
+    lower: document.getElementById("f-req-lower"),
+    number: document.getElementById("f-req-number"),
+    special: document.getElementById("f-req-special")
+  };
+
+  // Mostrar / Ocultar contraseñas
+  showPasswords.addEventListener("change", () => {
+    const type = showPasswords.checked ? "text" : "password";
+    forgotPasswordInput.type = type;
+    confirmInput.type = type;
+  });
+
+  // 🔹 Validar fuerza
+  forgotPasswordInput.addEventListener("input", () => {
+    const val = forgotPasswordInput.value;
+    const hasLength = val.length >= 8;
+    const hasUpper = /[A-Z]/.test(val);
+    const hasLower = /[a-z]/.test(val);
+    const hasNumber = /\d/.test(val);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(val);
+
+    updateReq(reqs.length, hasLength);
+    updateReq(reqs.upper, hasUpper);
+    updateReq(reqs.lower, hasLower);
+    updateReq(reqs.number, hasNumber);
+    updateReq(reqs.special, hasSpecial);
+
+    const score = [hasLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+
+    if (val.length === 0) {
+      strengthText.textContent = "";
+      forgotButton.disabled = true;
+    } else if (score <= 2) {
+      strengthText.textContent = "Fuerza: Débil";
+      strengthText.style.color = "red";
+      forgotButton.disabled = true;
+    } else if (score === 3 || score === 4) {
+      strengthText.textContent = "Fuerza: Media";
+      strengthText.style.color = "orange";
+      forgotButton.disabled = true;
+    } else {
+      strengthText.textContent = "Fuerza: Fuerte";
+      strengthText.style.color = "green";
+      validatePasswords(); // Verifica coincidencia
+    }
+  });
+
+  // 🔹 Validar coincidencia
+  confirmInput.addEventListener("input", validatePasswords);
+
+  function validatePasswords() {
+    const pass1 = forgotPasswordInput.value;
+    const pass2 = confirmInput.value;
+
+    if (pass1 === pass2 && strengthText.textContent === "Fuerza: Fuerte") {
+      confirmInput.classList.remove("is-invalid");
+      confirmInput.classList.add("is-valid");
+      mismatchMsg.style.display = "none";
+      forgotButton.disabled = false;
+    } else {
+      confirmInput.classList.remove("is-valid");
+      confirmInput.classList.add("is-invalid");
+      mismatchMsg.style.display = pass2.length > 0 ? "block" : "none";
+      forgotButton.disabled = true;
+    }
+  }
+
+  function updateReq(element, valid) {
+    element.style.color = valid ? "green" : "red";
+    element.style.fontWeight = valid ? "bold" : "normal";
+  }
+});
+</script>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
