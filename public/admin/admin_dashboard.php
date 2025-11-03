@@ -92,41 +92,19 @@ $solicitudes = obtenerSolicitudes(); // Esto llamará a la función comentada, l
 // PROCESAR ACCIONES
 // ==============================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Borrar todo (antes de otras acciones para evitar redirecciones prematuras)
-    if (isset($_POST['borrar_todo'])) {
-        // Eliminar todos los registros de la tabla registro_detalle
-        $stmt = $conn->prepare("DELETE FROM registro_detalle");
-        if ($stmt) {
-            $stmt->execute();
-            $stmt->close();
-        } else {
-            // En caso de que prepare falle, intentar query directa
-            $conn->query("DELETE FROM registro_detalle");
-        }
-        header("Location: admin_dashboard.php");
-        exit;
-    }
     // Marcar como entregado
     if (isset($_POST['entregar'])) {
         $id = intval($_POST['solicitud_id']);
         marcarEntregado($id);
-        header("Location: admin_dashboard.php"); // Refresca la página
-        exit;
-    }
-
-    // Borrar registro
-    if (isset($_POST['borrar'])) {
-        $id = intval($_POST['solicitud_id']);
-        if ($id > 0) {
-            // Usamos una sentencia preparada para seguridad
-            $stmt = $conn->prepare("DELETE FROM registro_detalle WHERE id_registro = ?");
-            if ($stmt) {
-                $stmt->bind_param("i", $id);
-                $stmt->execute();
-                $stmt->close();
+        // Redirigir preservando filtro y página si vienen por GET
+        $redir = 'admin_dashboard.php';
+        if (isset($_GET['servicio']) && $_GET['servicio'] !== '') {
+            $redir .= '?servicio=' . urlencode($_GET['servicio']);
+            if (isset($_GET['page'])) {
+                $redir .= '&page=' . intval($_GET['page']);
             }
         }
-        header("Location: admin_dashboard.php"); // Refresca la página
+        header("Location: " . $redir); // Refresca la página
         exit;
     }
 }
@@ -141,6 +119,36 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
     $solicitudes = array_values(array_filter($solicitudes, function($s) use ($selectedServicio) {
         return intval($s['id_servicio']) === $selectedServicio;
     }));
+}
+
+// ==============================
+// PAGINACIÓN
+// ==============================
+$perPage = 10; // registros por página
+$currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$totalItems = count($solicitudes);
+$totalPages = ($totalItems === 0) ? 1 : ceil($totalItems / $perPage);
+$offset = ($currentPage - 1) * $perPage;
+$pageSolicitudes = array_slice($solicitudes, $offset, $perPage);
+
+// Vista seleccionada: 'registro' o 'log'
+$view = isset($_GET['view']) ? $_GET['view'] : 'registro';
+
+// Si la vista es log, obtener los datos para el log
+$pageLogs = [];
+$totalLogPages = 1;
+$currentLogPage = isset($_GET['log_page']) ? max(1, intval($_GET['log_page'])) : 1;
+if ($view === 'log') {
+    $sql = "SELECT r.id_registro, e.correo_caja, r.id_estado, r.fecha_de_salida FROM registro_detalle r JOIN empleados e ON r.id_empleados = e.id_empleados ORDER BY r.fecha_de_salida DESC";
+    $res = $conn->query($sql);
+    $logs = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) $logs[] = $row;
+    }
+    $totalLogs = count($logs);
+    $totalLogPages = ($totalLogs === 0) ? 1 : ceil($totalLogs / $perPage);
+    $logOffset = ($currentLogPage - 1) * $perPage;
+    $pageLogs = array_slice($logs, $logOffset, $perPage);
 }
 
 ?>
@@ -173,12 +181,25 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
      <div class="container-fluid">
          <a class="navbar-brand fw-bold" href="#">Inventario CGI - Admin</a>
-         <div class="d-flex align-items-center">
-             <span class="navbar-text me-3 text-white">
-                 Bienvenido, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Administrador'); ?>
-             </span>
-             <a href="cambiar_contraseña.php" class="btn btn-warning btn-sm me-2">Cambiar contraseña</a>
-             <a href="../logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
+         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+             <span class="navbar-toggler-icon"></span>
+         </button>
+         <div class="collapse navbar-collapse" id="navbarContent">
+             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                 <li class="nav-item">
+                     <a class="nav-link <?= ($view === 'registro') ? 'active' : '' ?>" href="?view=registro">Registro de Solicitudes</a>
+                 </li>
+                 <li class="nav-item">
+                     <a class="nav-link <?= ($view === 'log') ? 'active' : '' ?>" href="?view=log">Log de Correos</a>
+                 </li>
+             </ul>
+             <div class="d-flex align-items-center">
+                 <span class="navbar-text me-3 text-white">
+                     Bienvenido, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Administrador'); ?>
+                 </span>
+                 <a href="cambiar_contraseña.php" class="btn btn-warning btn-sm me-2">Cambiar contraseña</a>
+                 <a href="../logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
+             </div>
          </div>
      </div>
 </nav>
@@ -187,7 +208,10 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
      <div class="container">
          <div class="row justify-content-center">
              <div class="col-md-11">
-                 <h3 class="titulo-principal">Registro de Solicitudes</h3>
+                 <h3 class="titulo-principal">
+                     <?= ($view === 'registro') ? 'Registro de Solicitudes' : 'Log de Correos' ?>
+                 </h3>
+                  <?php if ($view === 'registro'): ?>
                   <div class="table-responsive shadow-sm">
                      <div class="d-flex justify-content-between mb-2 align-items-center">
                          <!-- Formulario de filtro por servicio (GET) -->
@@ -202,9 +226,7 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
                              <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
                          </form>
 
-                         <form method="post" onsubmit="return confirm('¿Seguro que desea eliminar TODOS los registros? Esta acción no se puede deshacer.');">
-                             <button type="submit" name="borrar_todo" class="btn btn-sm btn-danger">Borrar todo</button>
-                         </form>
+                        <!-- 'Borrar todo' eliminado según petición -->
                      </div>
                       <table class="table table-bordered table-hover align-middle">
                           <thead class="table-primary text-center">
@@ -226,7 +248,7 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
                                       <td colspan="9" class="text-center text-muted">No hay solicitudes registradas</td>
                                   </tr>
                               <?php else: ?>
-                                  <?php foreach ($solicitudes as $s): ?>
+                                  <?php foreach ($pageSolicitudes as $s): ?>
                                       <tr>
                                           <td class="text-center"><?= $s['id_registro'] ?></td>
                                           <td><?= htmlspecialchars($s['usuario']) ?></td>
@@ -243,24 +265,115 @@ if ($selectedServicio > 0 && !empty($solicitudes)) {
                                           <td class="text-center">
                                               <form method="post" style="display:inline; margin-right:6px;">
                                                   <input type="hidden" name="solicitud_id" value="<?= $s['id_registro'] ?>">
-                                                  <?php if ($s['id_estado'] != 1): ?>
+                                                <?php if ($s['id_estado'] != 1): ?>
                                                       <button class="btn btn-sm btn-success" name="entregar">Marcar Entregado</button>
                                                   <?php else: ?>
                                                       <span class="text-success fw-semibold">Devuelto</span>
                                                   <?php endif; ?>
                                               </form>
-                                              <!-- Formulario para borrar registro -->
-                                              <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que desea borrar este registro?');">
-                                                  <input type="hidden" name="solicitud_id" value="<?= $s['id_registro'] ?>">
-                                                  <button type="submit" name="borrar" class="btn btn-sm btn-danger">Borrar</button>
-                                              </form>
+                                              <!-- Botón de borrar por fila eliminado -->
                                           </td>
                                       </tr>
                                   <?php endforeach; ?>
                               <?php endif; ?>
                           </tbody>
                       </table>
+                      <!-- Paginación -->
+                      <?php if ($totalPages > 1): ?>
+                          <nav aria-label="Paginación solicitudes">
+                              <ul class="pagination justify-content-center mt-3">
+                                  <?php
+                                      $baseParams = [];
+                                      if (isset($_GET['servicio']) && $_GET['servicio'] !== '') {
+                                          $baseParams['servicio'] = $_GET['servicio'];
+                                      }
+                                      // Previous
+                                      $prev = max(1, $currentPage - 1);
+                                      $baseParams['page'] = $prev;
+                                      $prevUrl = 'admin_dashboard.php?' . http_build_query($baseParams);
+                                  ?>
+                                  <li class="page-item <?= ($currentPage <= 1) ? 'disabled' : '' ?>">
+                                      <a class="page-link" href="<?= $prevUrl ?>" aria-label="Anterior">&laquo;</a>
+                                  </li>
+                                  <?php for ($p = 1; $p <= $totalPages; $p++):
+                                      $baseParams['page'] = $p;
+                                      $url = 'admin_dashboard.php?' . http_build_query($baseParams);
+                                  ?>
+                                      <li class="page-item <?= ($p == $currentPage) ? 'active' : '' ?>"><a class="page-link" href="<?= $url ?>"><?= $p ?></a></li>
+                                  <?php endfor; ?>
+                                  <?php
+                                      // Next
+                                      $next = min($totalPages, $currentPage + 1);
+                                      $baseParams['page'] = $next;
+                                      $nextUrl = 'admin_dashboard.php?' . http_build_query($baseParams);
+                                  ?>
+                                  <li class="page-item <?= ($currentPage >= $totalPages) ? 'disabled' : '' ?>">
+                                      <a class="page-link" href="<?= $nextUrl ?>" aria-label="Siguiente">&raquo;</a>
+                                  </li>
+                              </ul>
+                          </nav>
+                      <?php endif; ?>
                   </div>
+                  <?php else: ?>
+                  <div class="table-responsive shadow-sm">
+                      <table class="table table-bordered table-hover align-middle">
+                          <thead class="table-primary text-center">
+                              <tr>
+                                  <th># Préstamo</th>
+                                  <th>Correo</th>
+                                  <th>Enviado</th>
+                                  <th>Recibido</th>
+                                  <th>Fecha de envío</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              <?php if (empty($pageLogs)): ?>
+                                  <tr><td colspan="5" class="text-center text-muted">No hay logs</td></tr>
+                              <?php else: ?>
+                                  <?php foreach ($pageLogs as $l): ?>
+                                      <tr>
+                                          <td class="text-center"><?= htmlspecialchars($l['id_registro']) ?></td>
+                                          <td><?= htmlspecialchars($l['correo_caja']) ?></td>
+                                          <td class="text-center">No registrado</td>
+                                          <td class="text-center"><?= ($l['id_estado'] == 1) ? 'Sí' : 'No' ?></td>
+                                          <td><?= htmlspecialchars($l['fecha_de_salida']) ?></td>
+                                      </tr>
+                                  <?php endforeach; ?>
+                              <?php endif; ?>
+                          </tbody>
+                      </table>
+                      <!-- Paginación Log -->
+                      <?php if ($totalLogPages > 1): ?>
+                        <nav aria-label="Paginación logs">
+                          <ul class="pagination justify-content-center mt-3">
+                            <?php
+                              $logBase = ['view' => 'log'];
+                              $prevLog = max(1, $currentLogPage - 1);
+                              $logBase['log_page'] = $prevLog;
+                              $prevLogUrl = 'admin_dashboard.php?' . http_build_query($logBase);
+                            ?>
+                            <li class="page-item <?= ($currentLogPage <= 1) ? 'disabled' : '' ?>">
+                              <a class="page-link" href="<?= $prevLogUrl ?>">&laquo;</a>
+                            </li>
+                            <?php for ($pp = 1; $pp <= $totalLogPages; $pp++):
+                                $logBase['log_page'] = $pp;
+                                $logUrl = 'admin_dashboard.php?' . http_build_query($logBase);
+                            ?>
+                                <li class="page-item <?= ($pp == $currentLogPage) ? 'active' : '' ?>"><a class="page-link" href="<?= $logUrl ?>"><?= $pp ?></a></li>
+                            <?php endfor; ?>
+                            <?php
+                              $nextLog = min($totalLogPages, $currentLogPage + 1);
+                              $logBase['log_page'] = $nextLog;
+                              $nextLogUrl = 'admin_dashboard.php?' . http_build_query($logBase);
+                            ?>
+                            <li class="page-item <?= ($currentLogPage >= $totalLogPages) ? 'disabled' : '' ?>">
+                              <a class="page-link" href="<?= $nextLogUrl ?>">&raquo;</a>
+                            </li>
+                          </ul>
+                        </nav>
+                      <?php endif; ?>
+                  </div>
+                  <?php endif; ?>
               </div>
          </div>
      </div>

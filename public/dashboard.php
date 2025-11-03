@@ -86,11 +86,10 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
         $mail->Port = 587;
         $mail->CharSet = 'UTF-8';
 
-        $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema Inventario');
-        $mail->addAddress('fmoragarita@gmail.com');
+        $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema Inventario');
         $mail->addAddress('bsanchez25031@gmail.com');
-        $mail->addAddress('Isaacchacon839@gmail.com');
-
+        $mail->addAddress('');
+        $mail->addAddress('');
         $mail->isHTML(true);
         $mail->Subject = 'Nueva solicitud de equipo';
         $mail->Body = "

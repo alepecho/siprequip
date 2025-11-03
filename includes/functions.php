@@ -110,31 +110,52 @@ function obtenerSolicitudes() {
     }
     return $solicitudes;
 }
+// ======================================================
+// FUNCION: Registrar log de correo enviado
+// ======================================================
+function registrarLogCorreo($id_registro, $destinatario, $asunto, $estado, $error = null) {
+    global $conn;
+    $sql = "INSERT INTO registro_mail_log 
+            (id_registro, destinatario, asunto, estado_envio, mensaje_error) 
+            VALUES (?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("issss", $id_registro, $destinatario, $asunto, $estado, $error);
+    return $stmt->execute();
+}
+
+// ======================================================
+// FUNCION: Enviar correo de entrega
+// ======================================================
 function enviarCorreoEntrega($info) {
     $mail = new PHPMailer(true);
-
+    $destinatarios = [
+        'bsanchez25031@gmail.com',
+        'gfchaves@ccss.sa.cr',
+        'basalazar@ccss.sa.cr'
+    ];
+    
     try {
         // Configuración del servidor SMTP
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
-        $mail->Username = 'brandonsanchezpacheco@gmail.com'; // <-- tu correo Gmail
-        $mail->Password = 'arnk lcsj gqyv joiu '; // <-- contraseña de aplicación
+        $mail->Username = 'brandonsanchezpacheco@gmail.com';
+        $mail->Password = 'arnk lcsj gqyv joiu ';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->CharSet = 'UTF-8';
 
         // Remitente
-        $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema de Inventario ');
+        $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema de Inventario');
 
-        // Destinatarios (los tres administradores)
-        $mail->addAddress('aramiras@ccss.sa.cr');
-        $mail->addAddress('gfchaves@ccss.sa.cr');
-        $mail->addAddress('basalazar@ccss.sa.cr');
+        // Destinatarios
+        foreach ($destinatarios as $email) {
+            $mail->addAddress($email);
+        }
 
         // Contenido
         $mail->isHTML(true);
-        $mail->Subject = '📦 Equipo entregado - Inventario ';
+        $mail->Subject = '📦 Equipo entregado - Inventario';
         $mail->Body = "
             <h3>Equipo entregado correctamente</h3>
             <p><strong>Empleado:</strong> {$info['empleado']}</p>
@@ -145,8 +166,31 @@ function enviarCorreoEntrega($info) {
         ";
 
         $mail->send();
+        
+        // Registrar el envío exitoso para cada destinatario
+        foreach ($destinatarios as $email) {
+            registrarLogCorreo(
+                $info['id_registro'],
+                $email,
+                $mail->Subject,
+                'EXITOSO'
+            );
+        }
+        
+        return true;
     } catch (Exception $e) {
+        // Registrar el error para cada destinatario
+        foreach ($destinatarios as $email) {
+            registrarLogCorreo(
+                $info['id_registro'],
+                $email,
+                $mail->Subject,
+                'FALLIDO',
+                $mail->ErrorInfo
+            );
+        }
         error_log("Error al enviar correo: " . $mail->ErrorInfo);
+        return false;
     }
 }
 ?>
