@@ -125,12 +125,12 @@ function enviarCorreoEntrega($info) {
         $mail->CharSet = 'UTF-8';
 
         // Remitente
-        $mail->setFrom('brandonsanchezpacheco@gmail.com', 'Sistema de Inventario ');
+        $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema de Inventario ');
 
         // Destinatarios (los tres administradores)
-        $mail->addAddress('fmoragarita@gmail.com');
-        $mail->addAddress('Isaacchacon839@gmail.com');
-        $mail->addAddress('bsanchez25031@gmail.com');
+        $mail->addAddress('aramiras@ccss.sa.cr');
+        $mail->addAddress('gfchaves@ccss.sa.cr');
+        $mail->addAddress('basalazar@ccss.sa.cr');
 
         // Contenido
         $mail->isHTML(true);
