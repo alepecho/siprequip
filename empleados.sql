@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 30-10-2025 a las 20:15:39
+-- Tiempo de generación: 31-10-2025 a las 16:25:03
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -108,7 +108,7 @@ INSERT INTO `inventario` (`id_inventario`, `articulo`, `cantidad`, `id_estado`) 
 (2, 'PROYECTOR', 1, 1),
 (3, 'PANTALLA', 1, 1),
 (4, 'MIFI', 1, 1),
-(5, 'MONITORES', 3, 1);
+(5, 'MONITORES', 4, 1);
 
 -- --------------------------------------------------------
 
@@ -120,19 +120,21 @@ CREATE TABLE `registro_detalle` (
   `id_registro` int(11) NOT NULL,
   `fecha_de_salida` date NOT NULL DEFAULT current_timestamp(),
   `fecha_de_retorno` date NOT NULL DEFAULT current_timestamp(),
+  `cantidad` int(11) NOT NULL,
   `id_empleados` int(11) NOT NULL,
   `id_estado` int(11) NOT NULL,
   `id_servicio` int(11) NOT NULL,
-  `id_inventario` int(55) NOT NULL,
-  `cantidad` int(11) NOT NULL
+  `id_inventario` int(55) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `registro_detalle`
 --
 
-INSERT INTO `registro_detalle` (`id_registro`, `fecha_de_salida`, `fecha_de_retorno`, `id_empleados`, `id_estado`, `id_servicio`, `id_inventario`, `cantidad`) VALUES
-(1, '2025-10-30', '2025-10-30', 1, 2, 2, 5, 1);
+INSERT INTO `registro_detalle` (`id_registro`, `fecha_de_salida`, `fecha_de_retorno`, `cantidad`, `id_empleados`, `id_estado`, `id_servicio`, `id_inventario`) VALUES
+(1, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 1),
+(2, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 5),
+(3, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 5);
 
 -- --------------------------------------------------------
 
@@ -261,7 +263,7 @@ ALTER TABLE `empleados`
 -- AUTO_INCREMENT de la tabla `registro_detalle`
 --
 ALTER TABLE `registro_detalle`
-  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`

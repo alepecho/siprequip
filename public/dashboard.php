@@ -95,7 +95,7 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
         $mail->Subject = 'Nueva solicitud de equipo';
         $mail->Body = "
             <h2>Nueva solicitud de equipo</h2>
-            <p><strong>Usuario:</strong> $usuario_nombre</p>
+            <p><strong>Usuario:</strong> $usuario_nombre </p>
             <p><strong>Departamento/Servicio:</strong> $departamento</p>
             <p><strong>Equipo:</strong> $equipo</p>
             <p><strong>Fecha de Entrega:</strong> $fecha_salida</p>
@@ -183,25 +183,58 @@ $stmt->fetch();
 $stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $departamento = trim($_POST['departamento']);
-    $id_inventario = intval($_POST['equipo']);
-    $fecha_salida = $_POST['fecha_salida'];
-    $fecha_retorno = $_POST['fecha_retorno'];
-    $cantidad_solicitada = intval($_POST['cantidad_solicitada']);
-    $id_usuario = $_SESSION['user_id'];
+  $departamento = trim($_POST['departamento']);
+  $fecha_salida = $_POST['fecha_salida'];
+  $fecha_retorno = $_POST['fecha_retorno'];
+  $id_usuario = $_SESSION['user_id'];
 
-    $hoy = date('Y-m-d');
-    if ($fecha_salida < $hoy) $errors[] = "La fecha de entrega no puede ser anterior a hoy.";
-    if ($fecha_retorno < $fecha_salida) $errors[] = "La fecha de devolución no puede ser anterior a la fecha de entrega.";
-    if (!$departamento || !$id_inventario || !$fecha_salida || !$fecha_retorno || !$cantidad_solicitada) $errors[] = "Completa todos los campos.";
+  $hoy = date('Y-m-d');
+  if ($fecha_salida < $hoy) $errors[] = "La fecha de entrega no puede ser anterior a hoy.";
+  if ($fecha_retorno < $fecha_salida) $errors[] = "La fecha de devolución no puede ser anterior a la fecha de entrega.";
 
-    if (empty($errors)) {
-        if (crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $cantidad_solicitada, $_SESSION['user_name'], $mailError)) {
-            $success = true;
-        } else {
-            $errors[] = "El equipo no está disponible o ocurrió un error (revisa la cantidad solicitada).";
+  // Soporta dos modos: carrito múltiple (cart_items JSON) o envío único (equipo + cantidad_solicitada)
+  $cart_items_json = isset($_POST['cart_items']) ? trim($_POST['cart_items']) : '';
+
+  $items_to_process = [];
+
+  if ($cart_items_json !== '') {
+    $decoded = json_decode($cart_items_json, true);
+    if (!is_array($decoded) || count($decoded) === 0) {
+      $errors[] = "El carrito está vacío o tiene un formato inválido.";
+    } else {
+      // cada elemento debe tener id (int) y cantidad (int)
+      foreach ($decoded as $it) {
+        $iid = isset($it['id']) ? intval($it['id']) : 0;
+        $cant = isset($it['cantidad']) ? intval($it['cantidad']) : 0;
+        if ($iid <= 0 || $cant <= 0) {
+          $errors[] = "Hay un artículo con datos inválidos en el carrito.";
+          break;
         }
+        $items_to_process[] = ['id' => $iid, 'cantidad' => $cant];
+      }
     }
+  } else {
+    // Modo antiguo: un solo equipo
+    $id_inventario = intval($_POST['equipo']);
+    $cantidad_solicitada = intval($_POST['cantidad_solicitada']);
+    if (!$departamento || !$id_inventario || !$fecha_salida || !$fecha_retorno || !$cantidad_solicitada) $errors[] = "Completa todos los campos.";
+    if (empty($errors)) {
+      $items_to_process[] = ['id' => $id_inventario, 'cantidad' => $cantidad_solicitada];
+    }
+  }
+
+  if (empty($errors) && count($items_to_process) > 0) {
+    $all_ok = true;
+    foreach ($items_to_process as $it) {
+      $ok = crearSolicitud($id_usuario, $departamento, $it['id'], $fecha_salida, $fecha_retorno, $it['cantidad'], $_SESSION['user_name'], $mailError);
+      if (!$ok) {
+        $all_ok = false;
+        $errors[] = "El equipo con ID {$it['id']} no está disponible o ocurrió un error (revisa la cantidad solicitada).";
+        // continuar para reportar todos los fallos
+      }
+    }
+    if ($all_ok) $success = true;
+  }
 }
 ?>
 
@@ -274,8 +307,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <div class="mb-3">
         <label class="form-label">Cantidad a solicitar</label>
-        <input type="number" name="cantidad_solicitada" id="cantidad-solicitada"
-          class="form-control" min="1" value="1" required>
+        <div class="input-group">
+          <input type="number" name="cantidad_solicitada" id="cantidad-solicitada"
+            class="form-control" min="1" value="1" required>
+          <button type="button" id="add-to-cart" class="btn btn-outline-primary">Agregar al carrito</button>
+        </div>
+        <small class="text-muted">Puedes agregar el mismo artículo varias veces; verás las entradas abajo.</small>
+      </div>
+
+      <!-- Carrito dinámico -->
+      <div class="mb-3">
+        <label class="form-label">Artículos en el carrito</label>
+        <div class="table-responsive">
+          <table class="table table-sm" id="cart-table">
+            <thead>
+              <tr>
+                <th>Artículo</th>
+                <th>Cantidad</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- filas agregadas por JS -->
+            </tbody>
+          </table>
+        </div>
+        <input type="hidden" name="cart_items" id="cart-items-input" value="">
       </div>
 
       <div class="row">
@@ -305,11 +362,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 const equipoSelect = document.getElementById('equipo-select');
 const cantidadInput = document.getElementById('cantidad-solicitada');
+const addToCartBtn = document.getElementById('add-to-cart');
+const cartTableBody = document.querySelector('#cart-table tbody');
+const cartItemsInput = document.getElementById('cart-items-input');
+
+let cart = [];
+
 equipoSelect.addEventListener('change', () => {
-  const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad);
+  const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad || '0');
   cantidadInput.max = max;
   if (cantidadInput.value > max) cantidadInput.value = max;
 });
+
+addToCartBtn.addEventListener('click', () => {
+  const selected = equipoSelect.selectedOptions[0];
+  if (!selected || !selected.value) {
+    alert('Selecciona un equipo antes de agregar.');
+    return;
+  }
+  const id = parseInt(selected.value);
+  const name = selected.textContent.trim();
+  const cantidad = parseInt(cantidadInput.value) || 1;
+  if (cantidad <= 0) {
+    alert('La cantidad debe ser mayor que 0.');
+    return;
+  }
+  // Añadir al carrito (no se des-duplica: si se quiere combinar, se puede implementar después)
+  cart.push({id: id, cantidad: cantidad, nombre: name});
+  updateCartDisplay();
+});
+
+function updateCartDisplay() {
+  cartTableBody.innerHTML = '';
+  cart.forEach((it, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(it.nombre)}</td><td>${it.cantidad}</td><td><button type="button" data-idx="${idx}" class="btn btn-sm btn-danger remove-item">Eliminar</button></td>`;
+    cartTableBody.appendChild(tr);
+  });
+  // Actualizar input oculto como JSON
+  cartItemsInput.value = JSON.stringify(cart.map(i => ({id: i.id, cantidad: i.cantidad})));
+  // Añadir listeners a botones eliminar
+  document.querySelectorAll('.remove-item').forEach(b => b.addEventListener('click', (e) => {
+    const i = parseInt(e.currentTarget.dataset.idx);
+    if (!isNaN(i)) {
+      cart.splice(i, 1);
+      updateCartDisplay();
+    }
+  }));
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>\"']/g, function(m) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]; });
+}
 
 // Spinner al enviar formulario
 document.querySelector("form").addEventListener("submit", function() {
@@ -458,4 +562,3 @@ document.querySelector("form").addEventListener("submit", function() {
     </style>
 </body>
 </html>
-

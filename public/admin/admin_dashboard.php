@@ -91,12 +91,58 @@ $solicitudes = obtenerSolicitudes(); // Esto llamará a la función comentada, l
 // ==============================
 // PROCESAR ACCIONES
 // ==============================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
-    $id = intval($_POST['solicitud_id']);
-    marcarEntregado($id);
-    header("Location: admin_dashboard.php"); // Refresca la página
-    exit;
-} 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Borrar todo (antes de otras acciones para evitar redirecciones prematuras)
+    if (isset($_POST['borrar_todo'])) {
+        // Eliminar todos los registros de la tabla registro_detalle
+        $stmt = $conn->prepare("DELETE FROM registro_detalle");
+        if ($stmt) {
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // En caso de que prepare falle, intentar query directa
+            $conn->query("DELETE FROM registro_detalle");
+        }
+        header("Location: admin_dashboard.php");
+        exit;
+    }
+    // Marcar como entregado
+    if (isset($_POST['entregar'])) {
+        $id = intval($_POST['solicitud_id']);
+        marcarEntregado($id);
+        header("Location: admin_dashboard.php"); // Refresca la página
+        exit;
+    }
+
+    // Borrar registro
+    if (isset($_POST['borrar'])) {
+        $id = intval($_POST['solicitud_id']);
+        if ($id > 0) {
+            // Usamos una sentencia preparada para seguridad
+            $stmt = $conn->prepare("DELETE FROM registro_detalle WHERE id_registro = ?");
+            if ($stmt) {
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+        header("Location: admin_dashboard.php"); // Refresca la página
+        exit;
+    }
+}
+
+// ==============================
+// FILTRO POR SERVICIO (GET)
+// ==============================
+// Obtener la lista de servicios para el select
+$servicios = obtenerServicios();
+$selectedServicio = isset($_GET['servicio']) ? intval($_GET['servicio']) : 0;
+if ($selectedServicio > 0 && !empty($solicitudes)) {
+    $solicitudes = array_values(array_filter($solicitudes, function($s) use ($selectedServicio) {
+        return intval($s['id_servicio']) === $selectedServicio;
+    }));
+}
+
 ?>
 
 
@@ -143,6 +189,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
              <div class="col-md-11">
                  <h3 class="titulo-principal">Registro de Solicitudes</h3>
                   <div class="table-responsive shadow-sm">
+                     <div class="d-flex justify-content-between mb-2 align-items-center">
+                         <!-- Formulario de filtro por servicio (GET) -->
+                         <form method="get" class="d-flex align-items-center" style="gap:8px;">
+                             <label for="servicio" class="mb-0">Filtrar por servicio:</label>
+                             <select name="servicio" id="servicio" class="form-select form-select-sm" style="width:auto;">
+                                 <option value="0">Todos</option>
+                                 <?php foreach ($servicios as $sv): ?>
+                                     <option value="<?= $sv['id_servicio'] ?>" <?= ($selectedServicio == $sv['id_servicio']) ? 'selected' : '' ?>><?= htmlspecialchars($sv['nombre'] ?? 'Servicio '.$sv['id_servicio']) ?></option>
+                                 <?php endforeach; ?>
+                             </select>
+                             <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+                         </form>
+
+                         <form method="post" onsubmit="return confirm('¿Seguro que desea eliminar TODOS los registros? Esta acción no se puede deshacer.');">
+                             <button type="submit" name="borrar_todo" class="btn btn-sm btn-danger">Borrar todo</button>
+                         </form>
+                     </div>
                       <table class="table table-bordered table-hover align-middle">
                           <thead class="table-primary text-center">
                               <tr>
@@ -178,13 +241,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['entregar'])) {
                                           <td><?= htmlspecialchars($s['fecha_solicitud']) ?></td>
                                           <td><?= htmlspecialchars($s['fecha_entrega']) ?></td>
                                           <td class="text-center">
-                                              <form method="post" style="display:inline;">
+                                              <form method="post" style="display:inline; margin-right:6px;">
                                                   <input type="hidden" name="solicitud_id" value="<?= $s['id_registro'] ?>">
                                                   <?php if ($s['id_estado'] != 1): ?>
                                                       <button class="btn btn-sm btn-success" name="entregar">Marcar Entregado</button>
                                                   <?php else: ?>
                                                       <span class="text-success fw-semibold">Devuelto</span>
                                                   <?php endif; ?>
+                                              </form>
+                                              <!-- Formulario para borrar registro -->
+                                              <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que desea borrar este registro?');">
+                                                  <input type="hidden" name="solicitud_id" value="<?= $s['id_registro'] ?>">
+                                                  <button type="submit" name="borrar" class="btn btn-sm btn-danger">Borrar</button>
                                               </form>
                                           </td>
                                       </tr>
