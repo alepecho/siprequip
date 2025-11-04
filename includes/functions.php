@@ -1,4 +1,12 @@
 <?php
+// Importar clases de PHPMailer
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/PHPMailer/PHPMailer.php';
+require_once __DIR__ . '/PHPMailer/SMTP.php';
+require_once __DIR__ . '/PHPMailer/Exception.php';
+
 // ======================================================
 // CONEXIÓN A LA BASE DE DATOS
 // ======================================================
@@ -116,10 +124,10 @@ function obtenerSolicitudes() {
 function registrarLogCorreo($id_registro, $destinatario, $asunto, $estado, $error = null) {
     global $conn;
     $sql = "INSERT INTO registro_mail_log 
-            (id_registro, destinatario, asunto, estado_envio, mensaje_error) 
-            VALUES (?, ?, ?, ?, ?)";
+            (id_registro, destinatario, estado_envio) 
+            VALUES (?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("issss", $id_registro, $destinatario, $asunto, $estado, $error);
+    $stmt->bind_param("iss", $id_registro, $destinatario, $estado);
     return $stmt->execute();
 }
 
@@ -173,7 +181,7 @@ function enviarCorreoEntrega($info) {
                 $info['id_registro'],
                 $email,
                 $mail->Subject,
-                'EXITOSO'
+                'SI'
             );
         }
         
@@ -185,7 +193,7 @@ function enviarCorreoEntrega($info) {
                 $info['id_registro'],
                 $email,
                 $mail->Subject,
-                'FALLIDO',
+                'NO',
                 $mail->ErrorInfo
             );
         }

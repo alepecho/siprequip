@@ -47,6 +47,30 @@ function marcarEntregado($id_registro) {
     $stmt->close();
     // --- FIN DE MODIFICACIÓN ---
     
+    // Obtener información para el correo
+    $stmt = $conn->prepare("
+        SELECT 
+            CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) as empleado,
+            i.articulo,
+            rd.fecha_de_salida,
+            rd.fecha_de_retorno,
+            rd.id_registro
+        FROM registro_detalle rd
+        INNER JOIN empleados e ON rd.id_empleados = e.id_empleados
+        INNER JOIN inventario i ON rd.id_inventario = i.id_inventario
+        WHERE rd.id_registro = ?
+    ");
+    $stmt->bind_param("i", $id_registro);
+    $stmt->execute();
+    $resultado = $stmt->get_result();
+    $info = $resultado->fetch_assoc();
+    $stmt->close();
+    
+    // Enviar correo de notificación
+    if ($info) {
+        enviarCorreoEntrega($info);
+    }
+    
     return true;
 }
 
@@ -63,7 +87,7 @@ function obtenerSolicitudes() {
               CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) AS usuario,
               s.id_servicio,
               i.articulo AS equipo,
-              i.cantidad,
+              i.placa,
               es.nombre AS estado,
               r.fecha_de_salida AS fecha_solicitud,
               r.fecha_de_retorno AS fecha_entrega,
@@ -263,7 +287,7 @@ if ($view === 'log') {
                                   <th>Usuario</th>
                                   <th>Servicio</th>
                                   <th>Equipo</th>
-                                  <th>Cantidad</th>
+                                  <th>Placa</th>
                                   <th>Estado</th>
                                   <th>Fecha solicitud</th>
                                   <th>Devolución</th>
@@ -282,7 +306,7 @@ if ($view === 'log') {
                                           <td><?= htmlspecialchars($s['usuario']) ?></td>
                                           <td class="text-center">Servicio #<?= htmlspecialchars($s['id_servicio']) ?></td>
                                           <td><?= htmlspecialchars($s['equipo']) ?></td>
-                                          <td class="text-center"><?= $s['cantidad'] ?></td>
+                                          <td class="text-center"><?= isset($s['placa']) && $s['placa'] ? $s['placa'] : 'N/A' ?></td>
                                           <td class="text-center">
                                               <span class="badge <?= strtolower($s['estado']) === 'disponible' ? 'bg-success' : 'bg-warning text-dark' ?>">
                                                   <?= htmlspecialchars($s['estado']) ?>
