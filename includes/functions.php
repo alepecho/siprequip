@@ -136,11 +136,24 @@ function registrarLogCorreo($id_registro, $destinatario, $asunto, $estado, $erro
 // ======================================================
 function enviarCorreoEntrega($info) {
     $mail = new PHPMailer(true);
-    $destinatarios = [
-        'bsanchez25031@gmail.com',
-        'gfchaves@ccss.sa.cr',
-        'basalazar@ccss.sa.cr'
-    ];
+    
+    // Destinatarios: empleado solicitante y administradores
+    $destinatarios = [];
+    
+    // Agregar el correo del empleado si existe
+    if (!empty($info['correo_empleado']) && filter_var($info['correo_empleado'], FILTER_VALIDATE_EMAIL)) {
+        $destinatarios[] = $info['correo_empleado'];
+    }
+    
+    // Agregar administradores
+    $destinatarios[] = 'gfchaves@ccss.sa.cr';
+    $destinatarios[] = 'basalazar@ccss.sa.cr';
+    
+    // Verificar que tengamos al menos un destinatario
+    if (empty($destinatarios)) {
+        error_log("Error: No hay destinatarios válidos para el correo");
+        return false;
+    }
     
     try {
         // Configuración del servidor SMTP
@@ -156,9 +169,18 @@ function enviarCorreoEntrega($info) {
         // Remitente
         $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema de Inventario');
 
-        // Destinatarios
-        foreach ($destinatarios as $email ) {
-            $mail->addAddress($email);
+        // Agregar destinatarios al correo
+        $destinatariosAgregados = 0;
+        foreach ($destinatarios as $email) {
+            if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $mail->addAddress($email);
+                $destinatariosAgregados++;
+            }
+        }
+        
+        // Verificar que se agregaron destinatarios
+        if ($destinatariosAgregados === 0) {
+            throw new Exception("No se pudieron agregar destinatarios válidos");
         }
 
         // Contenido
@@ -177,27 +199,31 @@ function enviarCorreoEntrega($info) {
         
         // Registrar el envío exitoso para cada destinatario
         foreach ($destinatarios as $email) {
-            registrarLogCorreo(
-                $info['id_registro'],
-                $email,
-                $mail->Subject,
-                'SI'
-            );
+            if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                registrarLogCorreo(
+                    $info['id_registro'],
+                    $email,
+                    $mail->Subject,
+                    'SI'
+                );
+            }
         }
         
         return true;
     } catch (Exception $e) {
         // Registrar el error para cada destinatario
         foreach ($destinatarios as $email) {
-            registrarLogCorreo(
-                $info['id_registro'],
-                $email,
-                $mail->Subject,
-                'NO',
-                $mail->ErrorInfo
-            );
+            if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                registrarLogCorreo(
+                    $info['id_registro'],
+                    $email,
+                    $mail->Subject,
+                    'NO',
+                    $mail->ErrorInfo
+                );
+            }
         }
-        error_log("Error al enviar correo: " . $mail->ErrorInfo);
+        error_log("Error al enviar correo: " . $e->getMessage());
         return false;
     }
 }

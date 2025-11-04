@@ -51,6 +51,7 @@ function marcarEntregado($id_registro) {
     $stmt = $conn->prepare("
         SELECT 
             CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) as empleado,
+            e.correo_caja as correo_empleado,
             i.articulo,
             rd.fecha_de_salida,
             rd.fecha_de_retorno,
@@ -66,9 +67,13 @@ function marcarEntregado($id_registro) {
     $info = $resultado->fetch_assoc();
     $stmt->close();
     
+    // Debug: Verificar información del correo
+    error_log("Info para correo: " . print_r($info, true));
+    
     // Enviar correo de notificación
     if ($info) {
-        enviarCorreoEntrega($info);
+        $resultado_correo = enviarCorreoEntrega($info);
+        error_log("Resultado envío correo: " . ($resultado_correo ? 'Exitoso' : 'Fallido'));
     }
     
     return true;
