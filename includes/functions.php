@@ -99,7 +99,7 @@ function obtenerSolicitudes() {
             CONCAT(e.nombre, ' ', e.apellido1, ' ', e.apellido2) AS usuario,
             s.id_servicio,
             i.articulo AS equipo,
-            i.cantidad,
+            i.placa,
             es.nombre AS estado,
             r.fecha_de_salida AS fecha_solicitud,
             r.fecha_de_retorno AS fecha_entrega,
