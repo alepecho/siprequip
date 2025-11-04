@@ -211,6 +211,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
 <title>Iniciar Sesión - Inventario</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="login-body">
 
@@ -223,12 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
             style="max-width: 100px; height: auto;">
 
       <h3 class="card-title text-center text-primary mb-4 fw-bold">Inicio de Sesión</h3>
-
-      <?php if($errors_login): ?>
-        <div class="alert alert-danger text-center">
-          <?php foreach($errors_login as $e) echo "<div>$e</div>"; ?>
-        </div>
-      <?php endif; ?>
 
       <!-- LOGIN -->
       <form method="post">
@@ -275,13 +271,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
-        <?php if($errors_forgot): ?>
-          <div class="alert alert-danger">
-            <?php foreach($errors_forgot as $e) echo "<div>$e</div>"; ?>
-          </div>
-        <?php elseif(!empty($success_forgot)): ?>
-          <div class="alert alert-success"><?php echo $success_forgot; ?></div>
-        <?php endif; ?>
         <form method="post">
           <div class="mb-3">
             <label class="form-label fw-semibold">Usuario</label>
@@ -438,6 +427,51 @@ document.querySelectorAll('input[type="text"], input[type="email"]').forEach(fun
     this.value = this.value.toUpperCase();
   });
 });
+
+// SweetAlert2 - Mostrar errores y éxitos
+<?php if($errors_login): ?>
+  Swal.fire({
+    icon: 'error',
+    title: 'Error al iniciar sesión',
+    html: '<?php foreach($errors_login as $e) echo $e . "<br>"; ?>',
+    confirmButtonColor: '#0d6efd'
+  });
+<?php endif; ?>
+
+<?php if($errors_forgot): ?>
+  Swal.fire({
+    icon: 'error',
+    title: 'Error al restablecer contraseña',
+    html: '<?php foreach($errors_forgot as $e) echo $e . "<br>"; ?>',
+    confirmButtonColor: '#0d6efd'
+  }).then(() => {
+    // Abrir modal de olvidé contraseña
+    const modal = new bootstrap.Modal(document.getElementById('forgotPasswordModal'));
+    modal.show();
+  });
+<?php endif; ?>
+
+<?php if(!empty($success_forgot)): ?>
+  Swal.fire({
+    icon: 'success',
+    title: '¡Contraseña restablecida!',
+    text: '<?php echo $success_forgot; ?>',
+    confirmButtonColor: '#198754'
+  });
+<?php endif; ?>
+
+<?php if($errors_register): ?>
+  Swal.fire({
+    icon: 'error',
+    title: 'Error al registrar',
+    html: '<?php foreach($errors_register as $e) echo $e . "<br>"; ?>',
+    confirmButtonColor: '#0d6efd'
+  }).then(() => {
+    // Abrir modal de registro
+    const modal = new bootstrap.Modal(document.getElementById('registerModal'));
+    modal.show();
+  });
+<?php endif; ?>
 </script>
 </body>
 </html>

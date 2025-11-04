@@ -71,14 +71,7 @@ function marcarEntregado($id_registro) {
     $info = $resultado->fetch_assoc();
     $stmt->close();
     
-    // Debug: Verificar información del correo
-    error_log("Info para correo: " . print_r($info, true));
-    
-    // Enviar correo de notificación
-    if ($info) {
-        $resultado_correo = enviarCorreoEntrega($info);
-        error_log("Resultado envío correo: " . ($resultado_correo ? 'Exitoso' : 'Fallido'));
-    }
+    // Ya no enviamos correo aquí, se envía al solicitar el préstamo
     
     return true;
 }
@@ -133,11 +126,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         marcarEntregado($id);
         // Redirigir preservando filtro y página si vienen por GET
-        $redir = 'admin_dashboard.php';
+        $redir = 'admin_dashboard.php?entregado=1';
         if (isset($_GET['servicio']) && $_GET['servicio'] !== '') {
             $servicio_clean = validateInt($_GET['servicio'], 0);
             if ($servicio_clean !== false) {
-                $redir .= '?servicio=' . urlencode($servicio_clean);
+                $redir .= '&servicio=' . urlencode($servicio_clean);
             }
             if (isset($_GET['page'])) {
                 $page_clean = validateInt($_GET['page'], 1);
@@ -236,6 +229,8 @@ if ($view === 'log') {
    <title>Panel Administrador - Inventario</title>
    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
    <link rel="stylesheet" href="estilo2.css">
+   <!-- SweetAlert2 -->
+   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
    <style>
      /* ✅ Título blanco, visible sobre fondo azul */
@@ -271,7 +266,7 @@ if ($view === 'log') {
                      Bienvenido, <?= sanitizeOutput($_SESSION['user_name'] ?? 'Administrador'); ?>
                  </span>
                  <a href="cambiar_contraseña.php" class="btn btn-warning btn-sm me-2">Cambiar contraseña</a>
-                 <a href="../logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>
+                 <a href="#" id="btn-logout-admin" class="btn btn-light btn-sm">Cerrar sesión</a>
              </div>
          </div>
      </div>
@@ -336,10 +331,10 @@ if ($view === 'log') {
                                           <td><?= htmlspecialchars($s['fecha_solicitud']) ?></td>
                                           <td><?= htmlspecialchars($s['fecha_entrega']) ?></td>
                                           <td class="text-center">
-                                              <form method="post" style="display:inline; margin-right:6px;">
+                                              <form method="post" class="form-entregar" style="display:inline; margin-right:6px;">
                                                   <input type="hidden" name="solicitud_id" value="<?= $s['id_registro'] ?>">
                                                 <?php if ($s['id_estado'] != 1): ?>
-                                                      <button class="btn btn-sm btn-success" name="entregar">Marcar Entregado</button>
+                                                      <button type="button" class="btn btn-sm btn-success btn-marcar-entregado" data-id="<?= $s['id_registro'] ?>" data-usuario="<?= htmlspecialchars($s['usuario']) ?>" data-equipo="<?= htmlspecialchars($s['equipo']) ?>">Marcar Entregado</button>
                                                   <?php else: ?>
                                                       <span class="text-success fw-semibold">Devuelto</span>
                                                   <?php endif; ?>
@@ -455,6 +450,86 @@ if ($view === 'log') {
          </div>
      </div>
 </div>
+
+<!-- SweetAlert2 Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Confirmación antes de marcar como devuelto
+document.querySelectorAll('.btn-marcar-devuelto').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const id = this.dataset.id;
+        const usuario = this.dataset.usuario;
+        const equipo = this.dataset.equipo;
+        const form = this.closest('form');
+        
+        Swal.fire({
+            title: '¿Marcar como devuelto?',
+            html: `<strong>Usuario:</strong> ${usuario}<br><strong>Equipo:</strong> ${equipo}`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, marcar como devuelto',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Mostrar loading
+                Swal.fire({
+                    title: 'Procesando...',
+                    html: 'Marcando como entregado y enviando correo de notificación',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                // Crear input para el submit
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'entregar';
+                input.value = '1';
+                form.appendChild(input);
+                form.submit();
+            }
+        });
+    });
+});
+
+// Mensaje de éxito después de redirigir (usando URL params)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('entregado') === '1') {
+    Swal.fire({
+        icon: 'success',
+        title: '¡Equipo marcado como entregado!',
+        text: 'Se ha enviado la notificación por correo electrónico',
+        confirmButtonColor: '#198754',
+        timer: 3000,
+        timerProgressBar: true
+    });
+    // Limpiar URL
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/[?&]entregado=1/, ''));
+}
+
+// Confirmación de cerrar sesión
+document.getElementById('btn-logout-admin').addEventListener('click', function(e) {
+    e.preventDefault();
+    Swal.fire({
+        title: '¿Cerrar sesión?',
+        text: '¿Estás seguro de que deseas cerrar tu sesión de administrador?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cerrar sesión',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '../logout.php';
+        }
+    });
+});
+</script>
 </body> 
 </html>
 

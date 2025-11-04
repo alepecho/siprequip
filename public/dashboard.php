@@ -31,6 +31,9 @@ $success = false;
 $errors = [];
 $mailError = "";
 
+// Generar/asegurar token CSRF para este formulario
+$csrfToken = generateCSRFToken();
+
 // ==============================
 // FUNCIONES
 // ==============================
@@ -78,31 +81,41 @@ function equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno) {
     return $count == 0;
 }
 
-function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_retorno, $usuario_nombre, &$mailError) {
+function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_retorno, $usuario_nombre, $correo_empleado, &$mailError) {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
-        $mail->Username = 'brandonsanchezpacheco@gmail.com'; // tu Gmail
-        $mail->Password = 'arnk lcsj gqyv joiu';             // contraseña de aplicación (sin espacios)
+        $mail->Username = 'brandonsanchezpacheco@gmail.com';
+        $mail->Password = 'arnk lcsj gqyv joiu';
         $mail->SMTPSecure = 'tls';
         $mail->Port = 587;
         $mail->CharSet = 'UTF-8';
 
         $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema Inventario');
-        $mail->addAddress('bsanchez25031@gmail.com');
-        $mail->addAddress('');
-        $mail->addAddress('');
+        
+        // Enviar al empleado solicitante si tiene correo válido
+        if (!empty($correo_empleado) && filter_var($correo_empleado, FILTER_VALIDATE_EMAIL)) {
+            $mail->addAddress($correo_empleado);
+        }
+        
+        // Enviar a los administradores
+        $mail->addAddress('ARAMIRAS@CCSS.SA.CR');
+        $mail->addAddress('gfchaves@ccss.sa.cr');
+        $mail->addAddress('basalazar@ccss.sa.cr');
+        
         $mail->isHTML(true);
-        $mail->Subject = 'Nueva solicitud de equipo';
+        $mail->Subject = '📦 Nueva solicitud de equipo';
         $mail->Body = "
             <h2>Nueva solicitud de equipo</h2>
             <p><strong>Usuario:</strong> $usuario_nombre </p>
             <p><strong>Departamento/Servicio:</strong> $departamento</p>
             <p><strong>Equipo:</strong> $equipo</p>
-            <p><strong>Fecha de Entrega:</strong> $fecha_salida</p>
+            <p><strong>Fecha de Préstamo:</strong> $fecha_salida</p>
             <p><strong>Fecha de Devolución:</strong> $fecha_retorno</p>
+            <hr>
+            <p><small>Este mensaje fue enviado automáticamente por el sistema de inventario.</small></p>
         ";
         $mail->send();
         return true;
@@ -115,11 +128,15 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
 function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $usuario_nombre, &$mailError) {
     global $conn;
 
-    // Datos del equipo
-    $stmt = $conn->prepare("SELECT id_estado, articulo FROM inventario WHERE id_inventario = ?");
-    $stmt->bind_param("i", $id_inventario);
+    // Datos del equipo y correo del empleado
+    $stmt = $conn->prepare("
+        SELECT i.id_estado, i.articulo, e.correo_caja 
+        FROM inventario i, empleados e 
+        WHERE i.id_inventario = ? AND e.id_empleados = ?
+    ");
+    $stmt->bind_param("ii", $id_inventario, $id_usuario);
     $stmt->execute();
-    $stmt->bind_result($id_estado, $articulo);
+    $stmt->bind_result($id_estado, $articulo, $correo_empleado);
     $stmt->fetch();
     $stmt->close();
 
@@ -165,8 +182,8 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
         $stmt->execute();
         $stmt->close();
 
-        // Notificar a los admins
-        enviarNotificacionAdmin($departamento, $articulo, $fecha_salida, $fecha_retorno, $usuario_nombre, $mailError);
+        // Notificar a los admins y al empleado solicitante
+        enviarNotificacionAdmin($departamento, $articulo, $fecha_salida, $fecha_retorno, $usuario_nombre, $correo_empleado, $mailError);
         return true;
     }
     return false;
@@ -278,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <span class="navbar-text me-3 text-white">
         Bienvenido, <?= htmlspecialchars($_SESSION['user_name']); ?>
       </span>
-      <a href="logout.php" class="btn btn-light btn-sm fw-semibold">Cerrar sesión</a>
+  <a href="logout.php" id="btn-logout" class="btn btn-light btn-sm fw-semibold">Cerrar sesión</a>
     </div>
   </div>
 </nav>
@@ -300,13 +317,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post">
-      <!-- Token CSRF -->
-      <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-      
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <div class="mb-3">
         <label class="form-label">Departamento / Servicio</label>
         <input type="text" name="departamento" class="form-control" 
-          value="<?= sanitizeOutput($nombre_servicio) ?>" readonly>
+          value="<?= htmlspecialchars($nombre_servicio) ?>" readonly>
       </div>
 
       <div class="mb-3">
@@ -315,8 +330,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <option value="">-- Selecciona un equipo --</option>
           <?php foreach($equipos as $e): 
             $estado = $e['nombre_estado'];
-            $nombre = sanitizeOutput($e['articulo']);
-            $placa = sanitizeOutput($e['placa']);
+            $nombre = htmlspecialchars($e['articulo']);
+            $placa = htmlspecialchars($e['placa']);
             $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'ocupado' ? '❌' : '⚠️');
             $disabled = strtolower($estado) !== 'disponible' ? 'disabled' : '';
           ?>
@@ -592,5 +607,31 @@ document.querySelector("form").addEventListener("submit", function(e) {
 
 
     </style>
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      Swal.fire({
+        title: '¿Cerrar sesión?',
+        text: '¿Estás seguro de que deseas cerrar tu sesión?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cerrar sesión',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = 'logout.php';
+        }
+      });
+    });
+  }
+});
+</script>
 </body>
 </html>

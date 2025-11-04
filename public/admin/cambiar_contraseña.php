@@ -62,6 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cambiar Contraseña</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
 body {
     background-color: #ffffff;
@@ -124,14 +126,6 @@ label {
 <div class="container py-5 d-flex justify-content-center align-items-center min-vh-100">
     <div class="card w-100" style="max-width: 500px;">
         <h3 class="mb-4">🔒 Cambiar Contraseña</h3>
-
-        <?php if ($success): ?>
-            <div class="alert alert-success text-center bg-light text-dark border-0">✅ Contraseña actualizada correctamente.</div>
-        <?php elseif ($errors): ?>
-            <div class="alert alert-danger bg-light text-dark border-0">
-                <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
-            </div>
-        <?php endif; ?>
 
         <form method="post">
             <div class="mb-3">
@@ -217,6 +211,27 @@ document.getElementById('show_passwords').addEventListener('change', function() 
     document.getElementById('new_password').type = type;
     document.getElementById('confirm_password').type = type;
 });
+
+// SweetAlert2 - Mostrar resultados
+<?php if ($success): ?>
+  Swal.fire({
+    icon: 'success',
+    title: '¡Contraseña actualizada!',
+    text: '✅ Tu contraseña ha sido actualizada correctamente.',
+    confirmButtonColor: '#198754',
+    timer: 3000,
+    timerProgressBar: true
+  }).then(() => {
+    window.location.href = 'admin_dashboard.php';
+  });
+<?php elseif ($errors): ?>
+  Swal.fire({
+    icon: 'error',
+    title: 'Error al cambiar contraseña',
+    html: '<?php foreach($errors as $e) echo $e . "<br>"; ?>',
+    confirmButtonColor: '#dc3545'
+  });
+<?php endif; ?>
 </script>
 
 </body>
