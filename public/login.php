@@ -1,7 +1,11 @@
 <?php
 session_start();
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/security.php';
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+// Establecer headers de seguridad
+setSecurityHeaders();
 
 $errors_login = [];
 $errors_register = [];
@@ -11,31 +15,48 @@ $errors_forgot = [];
 // LOGIN
 // ==========================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['correo'])) {
-    $correo = trim($_POST['correo']);
-    $password = $_POST['password'];
-
-    // Obtenemos todos los datos del usuario, incluyendo su rol
-    $stmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja=? LIMIT 1");
-    $stmt->bind_param("s", $correo);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-    $stmt->close();
-
-    if (!$user || !password_verify($password, $user['contrasena'])) {
-        $errors_login[] = "Correo o contraseña incorrectos.";
+    // Rate limiting - prevenir ataques de fuerza bruta
+    $ip = $_SERVER['REMOTE_ADDR'];
+    if (!checkRateLimit('login_' . $ip, 5, 300)) {
+        $errors_login[] = "Demasiados intentos. Intenta de nuevo en 5 minutos.";
     } else {
-        $_SESSION['user_id'] = $user['id_empleados'];
-        $_SESSION['user_name'] = $user['nombre'];
-        $_SESSION['user_rol'] = $user['id_rol'];
+        $correo = cleanInput($_POST['correo']);
+        $password = $_POST['password'];
 
-        // ✅ Redirección corregida para administradores
-        if ($user['id_rol'] == 3) {
-            header("Location: admin/admin_dashboard.php");
+        // Validar email
+        if (!validateEmail($correo)) {
+            $errors_login[] = "Correo electrónico inválido.";
         } else {
-            header("Location: dashboard.php");
+            // Obtenemos todos los datos del usuario, incluyendo su rol
+            $stmt = $conn->prepare("SELECT * FROM empleados WHERE correo_caja=? LIMIT 1");
+            $stmt->bind_param("s", $correo);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc();
+            $stmt->close();
+
+            if (!$user || !password_verify($password, $user['contrasena'])) {
+                $errors_login[] = "Correo o contraseña incorrectos.";
+            } else {
+                // Regenerar sesión para prevenir session fixation
+                session_regenerate_id(true);
+                
+                $_SESSION['user_id'] = $user['id_empleados'];
+                $_SESSION['user_name'] = sanitizeOutput($user['nombre']);
+                $_SESSION['user_rol'] = $user['id_rol'];
+                
+                // Generar token CSRF
+                generateCSRFToken();
+
+                // ✅ Redirección corregida para administradores
+                if ($user['id_rol'] == 3) {
+                    header("Location: admin/admin_dashboard.php");
+                } else {
+                    header("Location: dashboard.php");
+                }
+                exit;
+            }
         }
-        exit;
     }
 }
 
@@ -43,74 +64,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['correo'])) {
 // REGISTRO
 // ==========================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
-    $cedula = trim($_POST['cedula']);
-    $usuario_caja = trim($_POST['usuario_caja']);
-    $correo_caja = trim($_POST['correo_caja']);
-    $nombre = trim($_POST['nombre']);
-    $apellido1 = trim($_POST['apellido1']);
-    $apellido2 = trim($_POST['apellido2']);
-    $contrasena = trim($_POST['contrasena']);
+    $cedula = validateInt(cleanInput($_POST['cedula']));
+    $usuario_caja = validateString(cleanInput($_POST['usuario_caja']), 3, 50);
+    $correo_caja = cleanInput($_POST['correo_caja']);
+    $nombre = validateString(cleanInput($_POST['nombre']), 2, 50);
+    $apellido1 = validateString(cleanInput($_POST['apellido1']), 2, 50);
+    $apellido2 = validateString(cleanInput($_POST['apellido2']), 2, 50);
+    $contrasena = $_POST['contrasena'];
 
-    $checkStmt = $conn->prepare("SELECT 1 FROM empleados WHERE correo_caja=? OR usuario_caja=?");
-    $checkStmt->bind_param("ss", $correo_caja, $usuario_caja);
-    $checkStmt->execute();
-    $resCheck = $checkStmt->get_result();
-    $checkStmt->close();
+    // Validaciones
+    if (!$cedula) {
+        $errors_register[] = "Cédula inválida.";
+    }
+    if (!$usuario_caja) {
+        $errors_register[] = "Usuario inválido (3-50 caracteres).";
+    }
+    if (!validateEmail($correo_caja)) {
+        $errors_register[] = "Correo electrónico inválido.";
+    }
+    if (!$nombre || !$apellido1 || !$apellido2) {
+        $errors_register[] = "Nombre y apellidos son requeridos.";
+    }
+    
+    // Validar contraseña segura
+    $passValidation = validatePassword($contrasena);
+    if (!$passValidation['valid']) {
+        $errors_register[] = $passValidation['message'];
+    }
 
-    if ($resCheck->num_rows > 0) {
-        $errors_register[] = "Correo o usuario ya registrados.";
-    } else {
-        $id_servicio = intval($_POST['id_servicio'] ?? 0);
-        $nuevo_servicio = trim($_POST['nuevo_servicio'] ?? '');
+    if (empty($errors_register)) {
+        $checkStmt = $conn->prepare("SELECT 1 FROM empleados WHERE correo_caja=? OR usuario_caja=?");
+        $checkStmt->bind_param("ss", $correo_caja, $usuario_caja);
+        $checkStmt->execute();
+        $resCheck = $checkStmt->get_result();
+        $checkStmt->close();
 
-        if (!empty($nuevo_servicio)) {
-            $checkServ = $conn->prepare("SELECT id_servicio FROM servicio WHERE nombre_servicio=?");
-            $checkServ->bind_param("s", $nuevo_servicio);
-            $checkServ->execute();
-            $resServ = $checkServ->get_result();
-
-            if ($resServ->num_rows > 0) {
-                $row = $resServ->fetch_assoc();
-                $id_servicio = $row['id_servicio'];
-            } else {
-                $insertServ = $conn->prepare("INSERT INTO servicio (nombre_servicio) VALUES (?)");
-                $insertServ->bind_param("s", $nuevo_servicio);
-                $insertServ->execute();
-                $id_servicio = $conn->insert_id;
-                $insertServ->close();
-            }
-            $checkServ->close();
-        }
-
-        if ($id_servicio === 0) {
-            $errors_register[] = "Servicio inválido. Selecciona uno o agrégalo correctamente.";
+        if ($resCheck->num_rows > 0) {
+            $errors_register[] = "Correo o usuario ya registrados.";
         } else {
-            $contrasena_hash = password_hash($contrasena, PASSWORD_DEFAULT);
-            $rolStmt = $conn->prepare("SELECT id_rol FROM roles WHERE nombre_rol='Empleado' LIMIT 1");
-            $rolStmt->execute();
-            $rolRes = $rolStmt->get_result();
-            $rolRow = $rolRes->fetch_assoc();
-            $id_rol = $rolRow['id_rol'] ?? 1;
-            $rolStmt->close();
+            $id_servicio = validateInt($_POST['id_servicio'] ?? 0);
+            $nuevo_servicio = validateString(cleanInput($_POST['nuevo_servicio'] ?? ''), 0, 100);
 
-            $stmt = $conn->prepare("INSERT INTO empleados (
-                usuario_caja, cedula, nombre, apellido1, apellido2, correo_caja, contrasena, id_servicio, id_rol
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("sssssssii", 
-                $usuario_caja, 
-                $cedula, 
-                $nombre, 
-                $apellido1, 
-                $apellido2, 
-                $correo_caja, 
-                $contrasena_hash, 
-                $id_servicio,     
-                $id_rol
-            );
-            if(!$stmt->execute()){
-                $errors_register[] = "Error al registrar. Intenta de nuevo.";
+            if (!empty($nuevo_servicio)) {
+                $checkServ = $conn->prepare("SELECT id_servicio FROM servicio WHERE nombre_servicio=?");
+                $checkServ->bind_param("s", $nuevo_servicio);
+                $checkServ->execute();
+                $resServ = $checkServ->get_result();
+
+                if ($resServ->num_rows > 0) {
+                    $row = $resServ->fetch_assoc();
+                    $id_servicio = $row['id_servicio'];
+                } else {
+                    $insertServ = $conn->prepare("INSERT INTO servicio (nombre_servicio) VALUES (?)");
+                    $insertServ->bind_param("s", $nuevo_servicio);
+                    $insertServ->execute();
+                    $id_servicio = $conn->insert_id;
+                    $insertServ->close();
+                }
+                $checkServ->close();
             }
-            $stmt->close();
+
+            if ($id_servicio === 0 || $id_servicio === false) {
+                $errors_register[] = "Servicio inválido. Selecciona uno o agrégalo correctamente.";
+            } else {
+                $contrasena_hash = password_hash($contrasena, PASSWORD_DEFAULT);
+                $rolStmt = $conn->prepare("SELECT id_rol FROM roles WHERE nombre_rol='Empleado' LIMIT 1");
+                $rolStmt->execute();
+                $rolRes = $rolStmt->get_result();
+                $rolRow = $rolRes->fetch_assoc();
+                $id_rol = $rolRow['id_rol'] ?? 1;
+                $rolStmt->close();
+
+                $stmt = $conn->prepare("INSERT INTO empleados (
+                    usuario_caja, cedula, nombre, apellido1, apellido2, correo_caja, contrasena, id_servicio, id_rol
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sisssssii", 
+                    $usuario_caja, 
+                    $cedula, 
+                    $nombre, 
+                    $apellido1, 
+                    $apellido2, 
+                    $correo_caja, 
+                    $contrasena_hash, 
+                    $id_servicio,     
+                    $id_rol
+                );
+                if(!$stmt->execute()){
+                    $errors_register[] = "Error al registrar. Intenta de nuevo.";
+                }
+                $stmt->close();
+            }
         }
     }
 }
@@ -119,30 +162,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cedula'])) {
 // OLVIDÉ CONTRASEÑA
 // ==========================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario_forgot'])) {
-    $usuario_forgot = trim($_POST['usuario_forgot']);
-    $cedula_forgot = trim($_POST['cedula_forgot']);
-    $password_forgot = $_POST['password_forgot'];
-    $password_forgot_confirm = $_POST['password_forgot_confirm'];
-
-    if ($password_forgot !== $password_forgot_confirm) {
-        $errors_forgot[] = "Las contraseñas no coinciden.";
+    // Rate limiting
+    $ip = $_SERVER['REMOTE_ADDR'];
+    if (!checkRateLimit('forgot_' . $ip, 3, 600)) {
+        $errors_forgot[] = "Demasiados intentos. Intenta de nuevo en 10 minutos.";
     } else {
-        $stmt = $conn->prepare("SELECT id_empleados FROM empleados WHERE (correo_caja=? OR usuario_caja=?) AND cedula=? LIMIT 1");
-        $stmt->bind_param("sss", $usuario_forgot, $usuario_forgot, $cedula_forgot);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        $user = $res->fetch_assoc();
-        $stmt->close();
+        $usuario_forgot = cleanInput($_POST['usuario_forgot']);
+        $cedula_forgot = validateInt(cleanInput($_POST['cedula_forgot']));
+        $password_forgot = $_POST['password_forgot'];
+        $password_forgot_confirm = $_POST['password_forgot_confirm'];
 
-        if (!$user) {
-            $errors_forgot[] = "No se encontró usuario con esos datos.";
+        if ($password_forgot !== $password_forgot_confirm) {
+            $errors_forgot[] = "Las contraseñas no coinciden.";
         } else {
-            $new_hash = password_hash($password_forgot, PASSWORD_DEFAULT);
-            $updateStmt = $conn->prepare("UPDATE empleados SET contrasena=? WHERE id_empleados=?");
-            $updateStmt->bind_param("si", $new_hash, $user['id_empleados']);
-            $updateStmt->execute();
-            $updateStmt->close();
-            $success_forgot = "Contraseña restablecida con éxito. Ahora puedes iniciar sesión.";
+            // Validar contraseña segura
+            $passValidation = validatePassword($password_forgot);
+            if (!$passValidation['valid']) {
+                $errors_forgot[] = $passValidation['message'];
+            } else {
+                $stmt = $conn->prepare("SELECT id_empleados FROM empleados WHERE (correo_caja=? OR usuario_caja=?) AND cedula=? LIMIT 1");
+                $stmt->bind_param("ssi", $usuario_forgot, $usuario_forgot, $cedula_forgot);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                $user = $res->fetch_assoc();
+                $stmt->close();
+
+                if (!$user) {
+                    $errors_forgot[] = "No se encontró usuario con esos datos.";
+                } else {
+                    $new_hash = password_hash($password_forgot, PASSWORD_DEFAULT);
+                    $updateStmt = $conn->prepare("UPDATE empleados SET contrasena=? WHERE id_empleados=?");
+                    $updateStmt->bind_param("si", $new_hash, $user['id_empleados']);
+                    $updateStmt->execute();
+                    $updateStmt->close();
+                    $success_forgot = "Contraseña restablecida con éxito. Ahora puedes iniciar sesión.";
+                }
+            }
         }
     }
 }

@@ -2,6 +2,10 @@
 session_start(); 
 require_once __DIR__ . '/../../includes/functions.php'; 
 require_once __DIR__ . '/../../includes/db.php'; 
+require_once __DIR__ . '/../../includes/security.php';
+
+// Establecer headers de seguridad
+setSecurityHeaders();
 
 // Validar si el usuario es admin 
 /* if (!isset($_SESSION['user_id']) || $_SESSION['user_rol'] != 3) {
@@ -123,14 +127,23 @@ $solicitudes = obtenerSolicitudes(); // Esto llamará a la función comentada, l
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Marcar como entregado
     if (isset($_POST['entregar'])) {
-        $id = intval($_POST['solicitud_id']);
+        $id = validateInt($_POST['solicitud_id'] ?? 0, 1);
+        if ($id === false) {
+            die("ID de solicitud inválido");
+        }
         marcarEntregado($id);
         // Redirigir preservando filtro y página si vienen por GET
         $redir = 'admin_dashboard.php';
         if (isset($_GET['servicio']) && $_GET['servicio'] !== '') {
-            $redir .= '?servicio=' . urlencode($_GET['servicio']);
+            $servicio_clean = validateInt($_GET['servicio'], 0);
+            if ($servicio_clean !== false) {
+                $redir .= '?servicio=' . urlencode($servicio_clean);
+            }
             if (isset($_GET['page'])) {
-                $redir .= '&page=' . intval($_GET['page']);
+                $page_clean = validateInt($_GET['page'], 1);
+                if ($page_clean !== false) {
+                    $redir .= '&page=' . $page_clean;
+                }
             }
         }
         header("Location: " . $redir); // Refresca la página
@@ -143,7 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ==============================
 // Obtener la lista de servicios para el select
 $servicios = obtenerServicios();
-$selectedServicio = isset($_GET['servicio']) ? intval($_GET['servicio']) : 0;
+$selectedServicio = validateInt($_GET['servicio'] ?? 0, 0);
+if ($selectedServicio === false) {
+    $selectedServicio = 0;
+}
 if ($selectedServicio > 0 && !empty($solicitudes)) {
     $solicitudes = array_values(array_filter($solicitudes, function($s) use ($selectedServicio) {
         return intval($s['id_servicio']) === $selectedServicio;
@@ -252,7 +268,7 @@ if ($view === 'log') {
              </ul>
              <div class="d-flex align-items-center">
                  <span class="navbar-text me-3 text-white">
-                     Bienvenido, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Administrador'); ?>
+                     Bienvenido, <?= sanitizeOutput($_SESSION['user_name'] ?? 'Administrador'); ?>
                  </span>
                  <a href="cambiar_contraseña.php" class="btn btn-warning btn-sm me-2">Cambiar contraseña</a>
                  <a href="../logout.php" class="btn btn-light btn-sm">Cerrar sesión</a>

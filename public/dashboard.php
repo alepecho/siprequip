@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/security.php';
 
 // --- PHPMailer ---
 require_once __DIR__ . '/../includes/PHPMailer/PHPMailer.php';
@@ -10,6 +11,9 @@ require_once __DIR__ . '/../includes/PHPMailer/Exception.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+
+// Establecer headers de seguridad
+setSecurityHeaders();
 
 // Verificar sesión
 if (!isset($_SESSION['user_id'])) {
@@ -188,50 +192,66 @@ $stmt->fetch();
 $stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $departamento = trim($_POST['departamento']);
-  $fecha_salida = $_POST['fecha_salida'];
-  $fecha_retorno = $_POST['fecha_retorno'];
-  $id_usuario = $_SESSION['user_id'];
-
-  $hoy = date('Y-m-d');
-  if ($fecha_salida < $hoy) $errors[] = "La fecha de entrega no puede ser anterior a hoy.";
-  if ($fecha_retorno < $fecha_salida) $errors[] = "La fecha de devolución no puede ser anterior a la fecha de entrega.";
-
-  // Soporta dos modos: carrito múltiple (cart_items JSON) o envío único (equipo + cantidad_solicitada)
-  $cart_items_json = isset($_POST['cart_items']) ? trim($_POST['cart_items']) : '';
-
-  $items_to_process = [];
-
-  if ($cart_items_json !== '') {
-    $decoded = json_decode($cart_items_json, true);
-    if (!is_array($decoded) || count($decoded) === 0) {
-      $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
-    } else {
-      // cada elemento debe tener id (int)
-      foreach ($decoded as $it) {
-        $iid = isset($it['id']) ? intval($it['id']) : 0;
-        if ($iid <= 0) {
-          $errors[] = "Hay un artículo con datos inválidos en el carrito.";
-          break;
-        }
-        $items_to_process[] = ['id' => $iid];
-      }
-    }
+  // Validar CSRF token
+  if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+      $errors[] = "Token de seguridad inválido. Por favor, recarga la página.";
   } else {
-    $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
-  }
+      $departamento = validateString(cleanInput($_POST['departamento']), 2, 100);
+      $fecha_salida = cleanInput($_POST['fecha_salida']);
+      $fecha_retorno = cleanInput($_POST['fecha_retorno']);
+      $id_usuario = $_SESSION['user_id'];
 
-  if (empty($errors) && count($items_to_process) > 0) {
-    $all_ok = true;
-    foreach ($items_to_process as $it) {
-      $ok = crearSolicitud($id_usuario, $departamento, $it['id'], $fecha_salida, $fecha_retorno, $_SESSION['user_name'], $mailError);
-      if (!$ok) {
-        $all_ok = false;
-        $errors[] = "El equipo con ID {$it['id']} no está disponible o ocurrió un error.";
-        // continuar para reportar todos los fallos
+      // Validar fechas
+      if (!validateDate($fecha_salida)) {
+          $errors[] = "Fecha de salida inválida.";
       }
-    }
-    if ($all_ok) $success = true;
+      if (!validateDate($fecha_retorno)) {
+          $errors[] = "Fecha de retorno inválida.";
+      }
+      if (!$departamento) {
+          $errors[] = "Departamento inválido.";
+      }
+
+      $hoy = date('Y-m-d');
+      if ($fecha_salida < $hoy) $errors[] = "La fecha de entrega no puede ser anterior a hoy.";
+      if ($fecha_retorno < $fecha_salida) $errors[] = "La fecha de devolución no puede ser anterior a la fecha de entrega.";
+
+      // Soporta dos modos: carrito múltiple (cart_items JSON) o envío único (equipo + cantidad_solicitada)
+      $cart_items_json = isset($_POST['cart_items']) ? cleanInput($_POST['cart_items']) : '';
+
+      $items_to_process = [];
+
+      if ($cart_items_json !== '') {
+        $decoded = json_decode($cart_items_json, true);
+        if (!is_array($decoded) || count($decoded) === 0) {
+          $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
+        } else {
+          // cada elemento debe tener id (int)
+          foreach ($decoded as $it) {
+            $iid = validateInt($it['id'] ?? 0, 1);
+            if ($iid === false) {
+              $errors[] = "Hay un artículo con datos inválidos en el carrito.";
+              break;
+            }
+            $items_to_process[] = ['id' => $iid];
+          }
+        }
+      } else {
+        $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
+      }
+
+      if (empty($errors) && count($items_to_process) > 0) {
+        $all_ok = true;
+        foreach ($items_to_process as $it) {
+          $ok = crearSolicitud($id_usuario, $departamento, $it['id'], $fecha_salida, $fecha_retorno, sanitizeOutput($_SESSION['user_name']), $mailError);
+          if (!$ok) {
+            $all_ok = false;
+            $errors[] = "El equipo con ID {$it['id']} no está disponible o ocurrió un error.";
+            // continuar para reportar todos los fallos
+          }
+        }
+        if ($all_ok) $success = true;
+      }
   }
 }
 ?>
@@ -280,10 +300,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post">
+      <!-- Token CSRF -->
+      <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+      
       <div class="mb-3">
         <label class="form-label">Departamento / Servicio</label>
         <input type="text" name="departamento" class="form-control" 
-          value="<?= htmlspecialchars($nombre_servicio) ?>" readonly>
+          value="<?= sanitizeOutput($nombre_servicio) ?>" readonly>
       </div>
 
       <div class="mb-3">
@@ -292,8 +315,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <option value="">-- Selecciona un equipo --</option>
           <?php foreach($equipos as $e): 
             $estado = $e['nombre_estado'];
-            $nombre = htmlspecialchars($e['articulo']);
-            $placa = htmlspecialchars($e['placa']);
+            $nombre = sanitizeOutput($e['articulo']);
+            $placa = sanitizeOutput($e['placa']);
             $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'ocupado' ? '❌' : '⚠️');
             $disabled = strtolower($estado) !== 'disponible' ? 'disabled' : '';
           ?>

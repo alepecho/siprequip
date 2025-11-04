@@ -7,6 +7,9 @@ require_once __DIR__ . '/PHPMailer/PHPMailer.php';
 require_once __DIR__ . '/PHPMailer/SMTP.php';
 require_once __DIR__ . '/PHPMailer/Exception.php';
 
+// Importar funciones de seguridad
+require_once __DIR__ . '/security.php';
+
 // ======================================================
 // CONEXIÓN A LA BASE DE DATOS
 // ======================================================
@@ -20,6 +23,9 @@ $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
+
+// Establecer charset UTF-8 para prevenir inyección SQL basada en charset
+$conn->set_charset("utf8mb4");
 
 // ======================================================
 // FUNCION: Obtener todos los empleados
