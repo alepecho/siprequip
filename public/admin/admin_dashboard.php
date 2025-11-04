@@ -139,7 +139,35 @@ $pageLogs = [];
 $totalLogPages = 1;
 $currentLogPage = isset($_GET['log_page']) ? max(1, intval($_GET['log_page'])) : 1;
 if ($view === 'log') {
-    $sql = "SELECT r.id_registro, e.correo_caja, r.id_estado, r.fecha_de_salida FROM registro_detalle r JOIN empleados e ON r.id_empleados = e.id_empleados ORDER BY r.fecha_de_salida DESC";
+    // Verificar si la tabla registro_mail_log existe
+    $table_check = $conn->query("SHOW TABLES LIKE 'registro_mail_log'");
+    $table_exists = $table_check && $table_check->num_rows > 0;
+    
+    if ($table_exists) {
+        $sql = "SELECT 
+            r.id_registro,
+            e.correo_caja,
+            r.id_estado,
+            COALESCE(ml.fecha_envio, r.fecha_de_salida) as fecha_envio,
+            COALESCE(IF(ml.estado_envio = 'SI', 'Sí', 'No'), 'No') as registrado
+        FROM registro_detalle r 
+        JOIN empleados e ON r.id_empleados = e.id_empleados
+        LEFT JOIN registro_mail_log ml ON r.id_registro = ml.id_registro
+        GROUP BY r.id_registro
+        ORDER BY r.fecha_de_salida DESC";
+    } else {
+        // Si la tabla no existe, mostrar valores por defecto
+        $sql = "SELECT 
+            r.id_registro,
+            e.correo_caja,
+            r.id_estado,
+            r.fecha_de_salida as fecha_envio,
+            'No' as registrado
+        FROM registro_detalle r 
+        JOIN empleados e ON r.id_empleados = e.id_empleados
+        ORDER BY r.fecha_de_salida DESC";
+    }
+    
     $res = $conn->query($sql);
     $logs = [];
     if ($res) {
@@ -190,7 +218,7 @@ if ($view === 'log') {
                      <a class="nav-link <?= ($view === 'registro') ? 'active' : '' ?>" href="?view=registro">Registro de Solicitudes</a>
                  </li>
                  <li class="nav-item">
-                     <a class="nav-link <?= ($view === 'log') ? 'active' : '' ?>" href="?view=log">Log de Correos</a>
+                     <a class="nav-link <?= ($view === 'log') ? 'active' : '' ?>" href="?view=log">Registro de Correos</a>
                  </li>
              </ul>
              <div class="d-flex align-items-center">
@@ -321,7 +349,7 @@ if ($view === 'log') {
                               <tr>
                                   <th># Préstamo</th>
                                   <th>Correo</th>
-                                  <th>Enviado</th>
+                                  <th>Registrado</th>
                                   <th>Recibido</th>
                                   <th>Fecha de envío</th>
                               </tr>
@@ -334,9 +362,13 @@ if ($view === 'log') {
                                       <tr>
                                           <td class="text-center"><?= htmlspecialchars($l['id_registro']) ?></td>
                                           <td><?= htmlspecialchars($l['correo_caja']) ?></td>
-                                          <td class="text-center">No registrado</td>
+                                          <td class="text-center">
+                                              <span class="badge <?= ($l['registrado'] === 'Sí') ? 'bg-success' : 'bg-secondary' ?>">
+                                                  <?= htmlspecialchars($l['registrado']) ?>
+                                              </span>
+                                          </td>
                                           <td class="text-center"><?= ($l['id_estado'] == 1) ? 'Sí' : 'No' ?></td>
-                                          <td><?= htmlspecialchars($l['fecha_de_salida']) ?></td>
+                                          <td><?= htmlspecialchars($l['fecha_envio']) ?></td>
                                       </tr>
                                   <?php endforeach; ?>
                               <?php endif; ?>

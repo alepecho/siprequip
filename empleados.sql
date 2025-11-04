@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 31-10-2025 a las 16:25:03
+-- Tiempo de generación: 03-11-2025 a las 22:08:55
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -95,7 +95,8 @@ INSERT INTO `estado` (`id_estado`, `nombre`) VALUES
 CREATE TABLE `inventario` (
   `id_inventario` int(11) NOT NULL,
   `articulo` varchar(55) NOT NULL,
-  `cantidad` int(55) NOT NULL,
+  `cantidad` int(55) DEFAULT NULL,
+  `placa` int(11) DEFAULT NULL,
   `id_estado` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -103,12 +104,18 @@ CREATE TABLE `inventario` (
 -- Volcado de datos para la tabla `inventario`
 --
 
-INSERT INTO `inventario` (`id_inventario`, `articulo`, `cantidad`, `id_estado`) VALUES
-(1, 'LAPTOP', 2, 1),
-(2, 'PROYECTOR', 1, 1),
-(3, 'PANTALLA', 1, 1),
-(4, 'MIFI', 1, 1),
-(5, 'MONITORES', 4, 1);
+INSERT INTO `inventario` (`id_inventario`, `articulo`, `cantidad`, `placa`, `id_estado`) VALUES
+(1, 'PROYECTOR', NULL, 1488741, 1),
+(2, 'PROYECTOR', NULL, 1488740, 1),
+(3, 'MIFI', NULL, 1980, 1),
+(4, 'MIFI', NULL, 1984, 1),
+(5, 'MONITOR', NULL, 1049440, 1),
+(6, 'MONITOR', NULL, 1460527, 1),
+(7, 'MONITOR', NULL, 146027, 1),
+(8, 'MONITOR', NULL, 1459777, 1),
+(9, 'LAPTOP', NULL, 1441229, 1),
+(10, 'LAPTOP', NULL, 1417228, 1),
+(11, 'PANTALLA_PLEGABLE', NULL, 1111111, 1);
 
 -- --------------------------------------------------------
 
@@ -124,17 +131,9 @@ CREATE TABLE `registro_detalle` (
   `id_empleados` int(11) NOT NULL,
   `id_estado` int(11) NOT NULL,
   `id_servicio` int(11) NOT NULL,
-  `id_inventario` int(55) NOT NULL
+  `id_inventario` int(55) NOT NULL,
+  `id_devolución` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `registro_detalle`
---
-
-INSERT INTO `registro_detalle` (`id_registro`, `fecha_de_salida`, `fecha_de_retorno`, `cantidad`, `id_empleados`, `id_estado`, `id_servicio`, `id_inventario`) VALUES
-(1, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 1),
-(2, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 5),
-(3, '2025-10-31', '2025-10-31', 1, 1, 1, 2, 5);
 
 -- --------------------------------------------------------
 
@@ -235,7 +234,8 @@ ALTER TABLE `registro_detalle`
   ADD KEY `id_inventario` (`id_inventario`),
   ADD KEY `servicio` (`id_servicio`),
   ADD KEY `id_estado` (`id_estado`),
-  ADD KEY `id_empleados` (`id_empleados`);
+  ADD KEY `id_empleados` (`id_empleados`),
+  ADD KEY `id_devolución` (`id_devolución`);
 
 --
 -- Indices de la tabla `roles`
@@ -260,10 +260,16 @@ ALTER TABLE `empleados`
   MODIFY `id_empleados` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
+-- AUTO_INCREMENT de la tabla `inventario`
+--
+ALTER TABLE `inventario`
+  MODIFY `id_inventario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+
+--
 -- AUTO_INCREMENT de la tabla `registro_detalle`
 --
 ALTER TABLE `registro_detalle`
-  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
@@ -305,6 +311,7 @@ ALTER TABLE `inventario`
 -- Filtros para la tabla `registro_detalle`
 --
 ALTER TABLE `registro_detalle`
+  ADD CONSTRAINT `id_devolución` FOREIGN KEY (`id_devolución`) REFERENCES `devolución` (`id_devolución`),
   ADD CONSTRAINT `id_empleados` FOREIGN KEY (`id_empleados`) REFERENCES `empleados` (`id_empleados`),
   ADD CONSTRAINT `id_estado` FOREIGN KEY (`id_estado`) REFERENCES `estado` (`id_estado`),
   ADD CONSTRAINT `id_inventario` FOREIGN KEY (`id_inventario`) REFERENCES `inventario` (`id_inventario`),

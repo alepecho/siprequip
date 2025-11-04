@@ -149,7 +149,7 @@ function enviarCorreoEntrega($info) {
         $mail->setFrom('aramiras@ccss.sa.cr', 'Sistema de Inventario');
 
         // Destinatarios
-        foreach ($destinatarios as $email) {
+        foreach ($destinatarios as $email ) {
             $mail->addAddress($email);
         }
 
