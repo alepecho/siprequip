@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 03-11-2025 a las 22:08:55
+-- Tiempo de generación: 04-11-2025 a las 16:21:09
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -65,7 +65,8 @@ INSERT INTO `empleados` (`id_empleados`, `usuario_caja`, `cedula`, `nombre`, `ap
 (3, 'sfigueroam', 119270992, 'stanley', 'Figueroa', 'Mayorga', 'stanleymayorga94@gmail.com', '$2y$10$b2.N7Yi1T58jAr2FDthveuqTjw9MrMGjCNB3ZHbPNC1MjgLGreVMm', 1, 19),
 (4, 'ARAMIRAS', 113070260, 'ALEJANDRO', 'RAMIREZ', 'ASTÚA', 'aramiras@ccss.sa.cr', '$2y$10$KH7q71zHGN5I9wbB3sfnYOQZYcSfj27fvTCjshJPSTFUJ.z9OaAnO', 3, 19),
 (5, 'GFCHAVES', 110310565, 'GERARDO', 'CHAVES', 'VEGA', 'gfchaves@ccss.sa.cr', '$2y$10$CaZ28eJyklzYVuYvoNJnmustMZtrhKf8fD88fOMb1lRJPnir9vNlm', 3, 19),
-(6, 'BASALAZAR', 116120335, 'BRYAN', 'SALAZAR', 'UVEDA', 'basalazar@ccss.sa.cr', '$2y$10$VL8KVbXlC.vr1au7nqKQruLxyfaGxr5tywB.voZwxwoUAyjBentd2', 3, 19);
+(6, 'BASALAZAR', 116120335, 'BRYAN', 'SALAZAR', 'UVEDA', 'basalazar@ccss.sa.cr', '$2y$10$VL8KVbXlC.vr1au7nqKQruLxyfaGxr5tywB.voZwxwoUAyjBentd2', 3, 19),
+(7, 'ICHACON823', 119910149, 'ISAAC JOEL', 'ESPINOZA', 'CHACON', 'ISAACCHACON839@GMAIL.COM', '$2y$10$doWty7UGH/GGgFi6QLoY.ONNZNpCJCD5tlnSrULVy7IuJbNn2/5ZW', 1, 19);
 
 -- --------------------------------------------------------
 
@@ -132,7 +133,21 @@ CREATE TABLE `registro_detalle` (
   `id_estado` int(11) NOT NULL,
   `id_servicio` int(11) NOT NULL,
   `id_inventario` int(55) NOT NULL,
-  `id_devolución` int(11) NOT NULL
+  `id_devolución` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `registro_mail_log`
+--
+
+CREATE TABLE `registro_mail_log` (
+  `id_mail_log` int(11) NOT NULL,
+  `id_registro` int(11) NOT NULL,
+  `fecha_envio` datetime DEFAULT current_timestamp(),
+  `destinatario` varchar(70) NOT NULL,
+  `estado_envio` enum('SI','NO') NOT NULL DEFAULT 'NO'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -238,6 +253,13 @@ ALTER TABLE `registro_detalle`
   ADD KEY `id_devolución` (`id_devolución`);
 
 --
+-- Indices de la tabla `registro_mail_log`
+--
+ALTER TABLE `registro_mail_log`
+  ADD PRIMARY KEY (`id_mail_log`),
+  ADD KEY `id_registro` (`id_registro`);
+
+--
 -- Indices de la tabla `roles`
 --
 ALTER TABLE `roles`
@@ -257,7 +279,7 @@ ALTER TABLE `servicio`
 -- AUTO_INCREMENT de la tabla `empleados`
 --
 ALTER TABLE `empleados`
-  MODIFY `id_empleados` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_empleados` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `inventario`
@@ -269,7 +291,13 @@ ALTER TABLE `inventario`
 -- AUTO_INCREMENT de la tabla `registro_detalle`
 --
 ALTER TABLE `registro_detalle`
-  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_registro` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT de la tabla `registro_mail_log`
+--
+ALTER TABLE `registro_mail_log`
+  MODIFY `id_mail_log` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
@@ -311,11 +339,17 @@ ALTER TABLE `inventario`
 -- Filtros para la tabla `registro_detalle`
 --
 ALTER TABLE `registro_detalle`
-  ADD CONSTRAINT `id_devolución` FOREIGN KEY (`id_devolución`) REFERENCES `devolución` (`id_devolución`),
+  ADD CONSTRAINT `id_devolución` FOREIGN KEY (`id_devolución`) REFERENCES `devolución` (`id_devolución`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `id_empleados` FOREIGN KEY (`id_empleados`) REFERENCES `empleados` (`id_empleados`),
   ADD CONSTRAINT `id_estado` FOREIGN KEY (`id_estado`) REFERENCES `estado` (`id_estado`),
   ADD CONSTRAINT `id_inventario` FOREIGN KEY (`id_inventario`) REFERENCES `inventario` (`id_inventario`),
   ADD CONSTRAINT `servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`);
+
+--
+-- Filtros para la tabla `registro_mail_log`
+--
+ALTER TABLE `registro_mail_log`
+  ADD CONSTRAINT `registro_mail_log_ibfk_1` FOREIGN KEY (`id_registro`) REFERENCES `registro_detalle` (`id_registro`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

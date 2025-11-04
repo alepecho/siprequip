@@ -33,10 +33,10 @@ $mailError = "";
 
 function obtenerEquipos() {
     global $conn;
-    $sql = "SELECT inventario.id_inventario, inventario.articulo, estado.nombre AS nombre_estado, inventario.cantidad
+    $sql = "SELECT inventario.id_inventario, inventario.articulo, inventario.placa, estado.nombre AS nombre_estado
             FROM inventario
             JOIN estado ON inventario.id_estado = estado.id_estado
-            ORDER BY inventario.articulo ASC";
+            ORDER BY inventario.articulo ASC, inventario.placa ASC";
     $result = $conn->query($sql);
     $equipos = [];
     while ($row = $result->fetch_assoc()) {
@@ -108,18 +108,18 @@ function enviarNotificacionAdmin($departamento, $equipo, $fecha_salida, $fecha_r
     }
 }
 
-function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $cantidad_solicitada, $usuario_nombre, &$mailError) {
+function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salida, $fecha_retorno, $usuario_nombre, &$mailError) {
     global $conn;
 
     // Datos del equipo
-    $stmt = $conn->prepare("SELECT cantidad, id_estado, articulo FROM inventario WHERE id_inventario = ?");
+    $stmt = $conn->prepare("SELECT id_estado, articulo FROM inventario WHERE id_inventario = ?");
     $stmt->bind_param("i", $id_inventario);
     $stmt->execute();
-    $stmt->bind_result($cantidad_disponible, $id_estado, $articulo);
+    $stmt->bind_result($id_estado, $articulo);
     $stmt->fetch();
     $stmt->close();
 
-    if ($id_estado != 1 || $cantidad_disponible < $cantidad_solicitada) return false;
+    if ($id_estado != 1) return false;
     if (!equipoDisponible($id_inventario, $fecha_salida, $fecha_retorno)) return false;
 
     // id_servicio del empleado
@@ -132,25 +132,31 @@ function crearSolicitud($id_usuario, $departamento, $id_inventario, $fecha_salid
 
     if (!$id_servicio) return false;
 
-    // Insertar solicitud
+    // Insertar solicitud con cantidad = 1
+    $cantidad = 1;
+    $id_devolucion = null; // NULL para nueva solicitud (sin devolución aún)
+    
     $stmt = $conn->prepare("
         INSERT INTO registro_detalle 
-        (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario, id_servicio, cantidad)
-        VALUES (?, ?, ?, 2, ?, ?, ?)
+        (fecha_de_salida, fecha_de_retorno, id_empleados, id_estado, id_inventario, id_servicio, cantidad, id_devolución)
+        VALUES (?, ?, ?, 2, ?, ?, ?, ?)
     ");
-    $stmt->bind_param("ssiiii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario, $id_servicio, $cantidad_solicitada);
+    if (!$stmt) {
+        error_log("Error preparando statement: " . $conn->error);
+        return false;
+    }
+    $stmt->bind_param("ssiiiii", $fecha_salida, $fecha_retorno, $id_usuario, $id_inventario, $id_servicio, $cantidad, $id_devolucion);
     $resultado = $stmt->execute();
+    
+    if (!$resultado) {
+        error_log("Error ejecutando insert: " . $stmt->error);
+    }
+    
     $stmt->close();
 
     if ($resultado) {
-        // Actualizar cantidad del inventario
-        $stmt = $conn->prepare("UPDATE inventario SET cantidad = cantidad - ? WHERE id_inventario = ?");
-        $stmt->bind_param("ii", $cantidad_solicitada, $id_inventario);
-        $stmt->execute();
-        $stmt->close();
-
-        // Si la cantidad llega a 0, cambiar estado a ocupado
-        $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ? AND cantidad = 0");
+        // Cambiar estado del equipo a ocupado
+        $stmt = $conn->prepare("UPDATE inventario SET id_estado = 2 WHERE id_inventario = ?");
         $stmt->bind_param("i", $id_inventario);
         $stmt->execute();
         $stmt->close();
@@ -199,36 +205,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($cart_items_json !== '') {
     $decoded = json_decode($cart_items_json, true);
     if (!is_array($decoded) || count($decoded) === 0) {
-      $errors[] = "El carrito está vacío o tiene un formato inválido.";
+      $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
     } else {
-      // cada elemento debe tener id (int) y cantidad (int)
+      // cada elemento debe tener id (int)
       foreach ($decoded as $it) {
         $iid = isset($it['id']) ? intval($it['id']) : 0;
-        $cant = isset($it['cantidad']) ? intval($it['cantidad']) : 0;
-        if ($iid <= 0 || $cant <= 0) {
+        if ($iid <= 0) {
           $errors[] = "Hay un artículo con datos inválidos en el carrito.";
           break;
         }
-        $items_to_process[] = ['id' => $iid, 'cantidad' => $cant];
+        $items_to_process[] = ['id' => $iid];
       }
     }
   } else {
-    // Modo antiguo: un solo equipo
-    $id_inventario = intval($_POST['equipo']);
-    $cantidad_solicitada = intval($_POST['cantidad_solicitada']);
-    if (!$departamento || !$id_inventario || !$fecha_salida || !$fecha_retorno || !$cantidad_solicitada) $errors[] = "Completa todos los campos.";
-    if (empty($errors)) {
-      $items_to_process[] = ['id' => $id_inventario, 'cantidad' => $cantidad_solicitada];
-    }
+    $errors[] = "El carrito está vacío. Agrega al menos un equipo antes de enviar.";
   }
 
   if (empty($errors) && count($items_to_process) > 0) {
     $all_ok = true;
     foreach ($items_to_process as $it) {
-      $ok = crearSolicitud($id_usuario, $departamento, $it['id'], $fecha_salida, $fecha_retorno, $it['cantidad'], $_SESSION['user_name'], $mailError);
+      $ok = crearSolicitud($id_usuario, $departamento, $it['id'], $fecha_salida, $fecha_retorno, $_SESSION['user_name'], $mailError);
       if (!$ok) {
         $all_ok = false;
-        $errors[] = "El equipo con ID {$it['id']} no está disponible o ocurrió un error (revisa la cantidad solicitada).";
+        $errors[] = "El equipo con ID {$it['id']} no está disponible o ocurrió un error.";
         // continuar para reportar todos los fallos
       }
     }
@@ -288,30 +287,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Equipo</label>
-        <select id="equipo-select" name="equipo" class="form-select" required>
+        <label class="form-label">Equipo (por placa)</label>
+        <select id="equipo-select" name="equipo" class="form-select">
           <option value="">-- Selecciona un equipo --</option>
           <?php foreach($equipos as $e): 
             $estado = $e['nombre_estado'];
             $nombre = htmlspecialchars($e['articulo']);
-            $cantidad = $e['cantidad'];
-            $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'prestado' ? '⚠️' : '❌');
+            $placa = htmlspecialchars($e['placa']);
+            $icon = strtolower($estado) === 'disponible' ? '✅' : (strtolower($estado) === 'ocupado' ? '❌' : '⚠️');
+            $disabled = strtolower($estado) !== 'disponible' ? 'disabled' : '';
           ?>
-            <option value="<?= $e['id_inventario'] ?>" data-cantidad="<?= $cantidad ?>">
-              <?= "$icon $nombre ($estado) - Cant: $cantidad" ?>
+            <option value="<?= $e['id_inventario'] ?>" <?= $disabled ?>>
+              <?= "$icon $nombre - Placa: $placa ($estado)" ?>
             </option>
           <?php endforeach; ?>
         </select>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Cantidad a solicitar</label>
-        <div class="input-group">
-          <input type="number" name="cantidad_solicitada" id="cantidad-solicitada"
-            class="form-control" min="1" value="1" required>
+        <div class="d-grid">
           <button type="button" id="add-to-cart" class="btn btn-outline-primary">Agregar al carrito</button>
         </div>
-        <small class="text-muted">Puedes agregar el mismo artículo varias veces; verás las entradas abajo.</small>
+        <small class="text-muted">Puedes agregar múltiples equipos; verás las entradas abajo.</small>
       </div>
 
       <!-- Carrito dinámico -->
@@ -322,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <thead>
               <tr>
                 <th>Artículo</th>
-                <th>Cantidad</th>
+                <th>Placa</th>
                 <th></th>
               </tr>
             </thead>
@@ -360,18 +357,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 const equipoSelect = document.getElementById('equipo-select');
-const cantidadInput = document.getElementById('cantidad-solicitada');
 const addToCartBtn = document.getElementById('add-to-cart');
 const cartTableBody = document.querySelector('#cart-table tbody');
 const cartItemsInput = document.getElementById('cart-items-input');
 
 let cart = [];
-
-equipoSelect.addEventListener('change', () => {
-  const max = parseInt(equipoSelect.selectedOptions[0].dataset.cantidad || '0');
-  cantidadInput.max = max;
-  if (cantidadInput.value > max) cantidadInput.value = max;
-});
 
 addToCartBtn.addEventListener('click', () => {
   const selected = equipoSelect.selectedOptions[0];
@@ -381,29 +371,43 @@ addToCartBtn.addEventListener('click', () => {
   }
   const id = parseInt(selected.value);
   const name = selected.textContent.trim();
-  const cantidad = parseInt(cantidadInput.value) || 1;
-  if (cantidad <= 0) {
-    alert('La cantidad debe ser mayor que 0.');
+  
+  // Verificar si el equipo ya está en el carrito
+  if (cart.some(item => item.id === id)) {
+    alert('Este equipo ya está en el carrito.');
     return;
   }
-  // Añadir al carrito (no se des-duplica: si se quiere combinar, se puede implementar después)
-  cart.push({id: id, cantidad: cantidad, nombre: name});
+  
+  // Extraer la placa del texto
+  const placaMatch = name.match(/Placa:\s*(\d+)/);
+  const placa = placaMatch ? placaMatch[1] : 'N/A';
+  
+  // Añadir al carrito
+  cart.push({id: id, nombre: name, placa: placa});
   updateCartDisplay();
+  
+  // Deshabilitar la opción seleccionada
+  selected.disabled = true;
+  equipoSelect.value = '';
 });
 
 function updateCartDisplay() {
   cartTableBody.innerHTML = '';
   cart.forEach((it, idx) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(it.nombre)}</td><td>${it.cantidad}</td><td><button type="button" data-idx="${idx}" class="btn btn-sm btn-danger remove-item">Eliminar</button></td>`;
+    tr.innerHTML = `<td>${escapeHtml(it.nombre)}</td><td>${escapeHtml(it.placa)}</td><td><button type="button" data-idx="${idx}" class="btn btn-sm btn-danger remove-item">Eliminar</button></td>`;
     cartTableBody.appendChild(tr);
   });
-  // Actualizar input oculto como JSON
-  cartItemsInput.value = JSON.stringify(cart.map(i => ({id: i.id, cantidad: i.cantidad})));
+  // Actualizar input oculto como JSON (solo id)
+  cartItemsInput.value = JSON.stringify(cart.map(i => ({id: i.id})));
   // Añadir listeners a botones eliminar
   document.querySelectorAll('.remove-item').forEach(b => b.addEventListener('click', (e) => {
     const i = parseInt(e.currentTarget.dataset.idx);
     if (!isNaN(i)) {
+      const removedItem = cart[i];
+      // Rehabilitar la opción en el select
+      const option = equipoSelect.querySelector(`option[value="${removedItem.id}"]`);
+      if (option) option.disabled = false;
       cart.splice(i, 1);
       updateCartDisplay();
     }
@@ -415,7 +419,13 @@ function escapeHtml(text) {
 }
 
 // Spinner al enviar formulario
-document.querySelector("form").addEventListener("submit", function() {
+document.querySelector("form").addEventListener("submit", function(e) {
+  // Validar que el carrito no esté vacío
+  if (cart.length === 0) {
+    e.preventDefault();
+    alert('Debes agregar al menos un equipo al carrito antes de enviar la solicitud.');
+    return false;
+  }
   document.getElementById("loading-overlay").style.display = "flex";
 });
 </script>
